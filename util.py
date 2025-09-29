@@ -1,6 +1,7 @@
 from faker import Faker
 from datetime import datetime
 import random
+import config
 
 class Util:
     def __init__(self):
@@ -10,7 +11,7 @@ class Util:
         subYear = random.randint(20, 40)
         today = datetime.today()
         birthDate = today.replace(year = today.year - subYear)
-        return self.faker.first_name() + birthDate.strftime("%Y%m%d") + "@example.com"
+        return self.faker.first_name() + birthDate.strftime("%Y%m%d") + config.mail_suffix
 
     def getFirstName(self):
         return self.faker.first_name()

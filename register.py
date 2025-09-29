@@ -1,10 +1,11 @@
 import requests
 from bs4 import BeautifulSoup
 from util import Util
+import config
 
 class Register:
     def __init__(self):
-        self.ACTION_URL = "https://reg31.smp.ne.jp/regist/Reg2"
+        self.ACTION_URL = config.form_url
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
             "Accept-Language": "en,zh-CN;q=0.9,zh-HK;q=0.8,zh;q=0.7,ja;q=0.6"
@@ -20,7 +21,7 @@ class Register:
         return payload
 
     def sendRegisterMail(self, mail):
-        REGISTER_URL = "https://reg31.smp.ne.jp/regist/is?SMPFORM=liqi-lhkikb-6c3edcca6d4ae20d151a83f0478f6987"
+        REGISTER_URL = config.register_url
 
         session = requests.Session()
         r = session.get(REGISTER_URL, headers=self.headers, allow_redirects=True)
@@ -36,7 +37,7 @@ class Register:
         session.post(self.ACTION_URL, data=payload, headers=self.headers, allow_redirects=True)
         return True
 
-    def registerStart(self, registerURL):
+    def registerStart(self, registerURL, passwd):
         session = requests.Session()
 
         # goto register web
@@ -48,8 +49,8 @@ class Register:
         sei = self.util.getLastName()
         mei = self.util.getFirstName()
         payload.update({
-            "password": "Ma252525",
-            "password:cf": "Ma252525",
+            "password": passwd,
+            "password:cf": passwd,
             "name_mei": mei,
             "kana_mei": mei,
             "name_sei": sei,

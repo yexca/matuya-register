@@ -1,13 +1,14 @@
 import imaplib, ssl, email
 from email.header import decode_header
 import re, time, random
+import config
 
 class Mail:
     def __init__(self, mailAddr):
         self.IMAP_HOST = "imap.gmail.com"
         self.IMAP_PORT = 993
-        self.EMAIL = ""
-        self.PASSWORD= ""
+        self.EMAIL = config.gmail_account
+        self.PASSWORD= config.gmail_password
         self.MAX_RESULTS = 20 # 只取最新 N 封，避免一次取太多
         self.RECIPIENT = mailAddr
 
