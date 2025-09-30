@@ -3,6 +3,7 @@ first_page = """
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
+    <meta name="robots" content="noindex, nofollow">
     <title>Get Matuya Account</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
@@ -107,7 +108,7 @@ first_page = """
   <body>
     <div class="container">
       <form id="reg-form" action="/register" method="post">
-        <p class="lead">大概 40s 到 60s 左右完成注册</p>
+        <p class="lead">大概 50s 左右完成注册，超时失败下方会有提示</p>
         <button id="start-btn" type="submit" class="btn">开始注册</button>
       </form>
 

@@ -15,4 +15,4 @@ COPY . .
 
 EXPOSE 8926
 
-CMD ["gunicorn", "-w", "2", "-k", "gevent", "--timeout", "180", "-b", "0.0.0.0:8926", "main:app"]
+CMD ["gunicorn", "-w", "2", "-k", "gevent", "--timeout", "180", "-b", "0.0.0.0:8926", "app:app"]
