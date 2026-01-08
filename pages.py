@@ -209,3 +209,304 @@ first_page = """
   </body>
 </html>
 """
+
+batch_page="""
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex, nofollow">
+    <title>Batch Register Matuya</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      :root {
+        --radius: 12px;
+        --primary: #111827;
+        --bg: #fafafa;
+      }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans CJK SC","Hiragino Sans","PingFang SC","Microsoft YaHei", Arial, sans-serif;
+        font-size: 16px;
+        line-height: 1.5;
+        color: var(--primary);
+        background: var(--bg);
+        padding: 16px;
+      }
+
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+      }
+
+      /* 表单区域 */
+      form {
+        text-align: center;
+        margin-top: 12px;
+        padding: 20px;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: var(--radius);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      }
+
+      .lead {
+        margin: 6px 0 14px;
+        color: #6b7280;
+        font-size: 0.95rem;
+      }
+
+      /* 输入控件组 */
+      .input-group {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      select {
+        padding: 8px 12px;
+        font-size: 1rem;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        background-color: #fff;
+        cursor: pointer;
+      }
+
+      .btn {
+        width: 100%;
+        padding: 12px 16px;
+        border: 0;
+        border-radius: var(--radius);
+        background: var(--primary);
+        color: #fff;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 0.2s;
+      }
+      .btn:hover { opacity: 0.9; }
+      .btn[disabled] { opacity: 0.6; cursor: not-allowed; }
+
+      /* 结果列表区域 */
+      #output-area {
+        margin-top: 20px;
+      }
+
+      /* 单个结果卡片 */
+      .result-card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: var(--radius);
+        padding: 16px;
+        margin-bottom: 12px;
+        position: relative;
+        animation: slideIn 0.3s ease-out;
+      }
+      @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+      .result-card.success { border-left: 5px solid #10b981; }
+      .result-card.fail { border-left: 5px solid #ef4444; }
+
+      .row {
+        margin: 8px 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      code {
+        padding: 4px 8px;
+        background: #f3f4f6;
+        border-radius: 6px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        word-break: break-all;
+        color: #4b5563;
+      }
+
+      .copy-btn {
+        padding: 6px 10px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        background: #fff;
+        font-size: 0.85rem;
+        cursor: pointer;
+        color: #374151;
+      }
+      .copy-btn:hover { background: #f9fafb; border-color: #d1d5db; }
+
+      .status-badge {
+        font-size: 0.85rem;
+        font-weight: bold;
+        padding: 2px 8px;
+        border-radius: 4px;
+        margin-bottom: 8px;
+        display: inline-block;
+      }
+      .status-success { background: #d1fae5; color: #065f46; }
+      .status-fail { background: #fee2e2; color: #991b1b; }
+      .error-msg { color: #ef4444; font-size: 0.9rem; }
+
+      /* 顶部状态提示 */
+      #global-status {
+        text-align: center;
+        color: #6b7280;
+        margin-bottom: 10px;
+        font-size: 0.9rem;
+        min-height: 24px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <form id="reg-form">
+        <h2>批量账号注册</h2>
+        <p class="lead">单次耗时约 50s，多线程并发执行</p>
+        
+        <div class="input-group">
+            <label for="count-select">生成数量：</label>
+            <select id="count-select" name="count">
+                <option value="1" selected>1 个</option>
+                <option value="2">2 个</option>
+                <option value="3">3 个</option>
+                <option value="4">4 个</option>
+                <option value="5">5 个</option>
+            </select>
+        </div>
+
+        <button id="start-btn" type="submit" class="btn">开始注册</button>
+      </form>
+
+      <div id="global-status"></div>
+      <div id="output-area"></div>
+    </div>
+
+    <script>
+      const form = document.getElementById('reg-form');
+      const btn = document.getElementById('start-btn');
+      const outputArea = document.getElementById('output-area');
+      const globalStatus = document.getElementById('global-status');
+      const countSelect = document.getElementById('count-select');
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // 1. 准备 UI
+        const count = countSelect.value;
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = `正在注册 ${count} 个账号...`;
+        globalStatus.textContent = '任务运行中，请耐心等待...';
+        outputArea.innerHTML = ''; // 清空旧结果
+
+        try {
+          // 2. 发起请求 (注意 URL 改为了 /register_batch)
+          const res = await fetch('/register_batch', { 
+            method: 'POST', 
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ count: parseInt(count) }) 
+          });
+
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          
+          const data = await res.json();
+          
+          // 3. 渲染结果
+          globalStatus.textContent = `完成！成功: ${data.success_count} / 总计: ${data.total_requested}`;
+          renderResults(data.details);
+
+        } catch (err) {
+          globalStatus.textContent = '请求发生错误';
+          outputArea.innerHTML = `<div class="result-card fail"><p class="error-msg">系统错误：${err.message}</p></div>`;
+        } finally {
+          btn.disabled = false;
+          btn.textContent = originalText;
+        }
+      });
+
+      // 渲染列表函数
+      function renderResults(details) {
+        if (!details || details.length === 0) return;
+
+        details.forEach((item, index) => {
+            const isSuccess = item.success;
+            const card = document.createElement('div');
+            card.className = `result-card ${isSuccess ? 'success' : 'fail'}`;
+
+            if (isSuccess) {
+                card.innerHTML = `
+                    <div class="status-badge status-success">账号 #${index + 1} 成功</div>
+                    <div class="row">
+                        <strong>账号：</strong>
+                        <code>${item.account}</code>
+                        <button type="button" class="copy-btn" data-copy-val="${item.account}">复制</button>
+                    </div>
+                    <div class="row">
+                        <strong>密码：</strong>
+                        <code>${item.password}</code>
+                        <button type="button" class="copy-btn" data-copy-val="${item.password}">复制</button>
+                    </div>
+                `;
+            } else {
+                card.innerHTML = `
+                    <div class="status-badge status-fail">账号 #${index + 1} 失败</div>
+                    <div class="row">
+                        <strong>账号：</strong>
+                        <code>${item.account}</code>
+                    </div>
+                    <p class="error-msg">原因：${item.msg || '未知错误'}</p>
+                `;
+            }
+            outputArea.appendChild(card);
+        });
+      }
+
+      // 复制功能的事件委托
+      document.addEventListener('click', async (e) => {
+        const b = e.target.closest('button[data-copy-val]');
+        if (!b) return;
+
+        const text = b.getAttribute('data-copy-val');
+        if (!text) return;
+
+        try {
+          await copyText(text);
+          const old = b.textContent;
+          b.textContent = 'OK';
+          b.style.color = '#10b981';
+          b.style.borderColor = '#10b981';
+          setTimeout(() => {
+              b.textContent = old;
+              b.style.color = '';
+              b.style.borderColor = '';
+          }, 1000);
+        } catch (err) {
+          alert('复制失败：' + err.message);
+        }
+      });
+
+      async function copyText(text) {
+        if (navigator.clipboard && window.isSecureContext) {
+          return navigator.clipboard.writeText(text);
+        } else {
+          // 兼容旧浏览器的回退方案
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.position = 'fixed';
+          ta.style.left = '-9999px';
+          document.body.appendChild(ta);
+          ta.focus();
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+        }
+      }
+    </script>
+  </body>
+</html>
+"""
