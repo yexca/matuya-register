@@ -1,0 +1,2 @@
+Please complete your registration:
+https://example.invalid/register/complete?token=abc123
