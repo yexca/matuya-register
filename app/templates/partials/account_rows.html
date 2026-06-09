@@ -1,0 +1,17 @@
+{% for account in accounts.items %}
+  {% set error_key = account.error_message %}
+  <tr data-account-id="{{ account.id }}" data-status="{{ account.status }}">
+    <td data-field="email">{{ account.email }}</td>
+    <td data-field="password">{{ account.password }}</td>
+    <td data-field="status">{{ t("status." ~ account.status) }}</td>
+    <td data-field="error_message">{{ t(error_key) if error_key else "" }}</td>
+    <td data-field="copy_count">{{ account.copy_count }}</td>
+    <td data-field="last_copied_at">{{ account.last_copied_at or "" }}</td>
+    <td data-field="created_at">{{ account.created_at }}</td>
+    <td data-field="updated_at">{{ account.updated_at }}</td>
+    <td class="actions">
+      <button type="button" data-copy="email">{{ t("accounts.copy_email") }}</button>
+      <button type="button" data-copy="password">{{ t("accounts.copy_password") }}</button>
+    </td>
+  </tr>
+{% endfor %}
