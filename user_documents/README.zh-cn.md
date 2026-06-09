@@ -65,6 +65,8 @@ cp .env.example .env
 
 ## 使用 Docker Compose 运行
 
+Docker Compose 会从本仓库源代码构建 `matuya-register:latest` 镜像。容器启动命令由 `Dockerfile` 中的 `CMD` 定义。
+
 构建并启动：
 
 ```bash
@@ -154,4 +156,3 @@ flask --app wsgi run --host 127.0.0.1 --port 8926
 - 应用重启会中断执行中的任务；启动时会把遗留的 `running` 记录标记为 `error.registration.interrupted`。
 - Matuya 账号密码为了后台展示和复制而明文保存。请保护数据库文件、备份文件和部署主机。
 - 自动化测试使用 fake client 和 fixture，不访问真实 Matuya 或 Gmail。真实链路需要在授权范围内人工验证。
-

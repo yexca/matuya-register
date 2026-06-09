@@ -65,6 +65,8 @@ Never commit `.env`, real Gmail app passwords, or production secrets.
 
 ## Run With Docker Compose
 
+Docker Compose builds the `matuya-register:latest` image from the source code in this repository. The container startup command is defined by `CMD` in `Dockerfile`.
+
 Build and start:
 
 ```bash
@@ -154,4 +156,3 @@ flask --app wsgi run --host 127.0.0.1 --port 8926
 - Restarting the app interrupts running tasks; startup marks leftover `running` records as `error.registration.interrupted`.
 - Account passwords are stored in plaintext because the admin UI must display and copy them. Protect the database file, backups, and deployment host.
 - Automated tests use fakes and fixtures. Real Matuya and Gmail validation must be performed manually with authorization.
-

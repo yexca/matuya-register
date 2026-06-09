@@ -1,5 +1,6 @@
 services:
   app:
+    image: yexca/matuya-register:v1.1
     build: .
     ports:
       - "8926:8926"
