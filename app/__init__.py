@@ -1,6 +1,7 @@
 from flask import Flask
 
 from . import db
+from .auth.service import AuthService
 from .config import load_config
 from .logging import init_logging
 from .security import init_security
@@ -15,6 +16,10 @@ def create_app():
 
     init_logging(app)
     db.init_app(app)
+    with app.app_context():
+        AuthService(db.get_db()).ensure_initial_admin(
+            config.admin_username, config.admin_password
+        )
     init_security(app)
 
     @app.get("/healthz")
