@@ -1,0 +1,12 @@
+{
+  "app.title": "Matuya 注册工具",
+  "auth.invalid_credentials": "用户名或密码错误。",
+  "auth.login": "登录",
+  "auth.logout": "退出登录",
+  "auth.password": "密码",
+  "auth.username": "用户名",
+  "error.auth.required": "需要先登录。",
+  "error.csrf.invalid": "CSRF token 无效。",
+  "error.locale.unsupported": "不支持的语言。",
+  "nav.language": "语言"
+}

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="{{ locale }}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ t("app.title") }}</title>
+  </head>
+  <body>
+    <header>
+      <h1>{{ t("app.title") }}</h1>
+      {% if session.get("username") %}
+        <span>{{ session.get("username") }}</span>
+        <form action="{{ url_for('i18n.set_locale') }}" method="post">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <label for="locale">{{ t("nav.language") }}</label>
+          <select id="locale" name="locale" onchange="this.form.submit()">
+            {% for item in supported_locales %}
+              <option value="{{ item }}" {% if item == locale %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </form>
+        <form action="{{ url_for('auth.logout') }}" method="post">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <button type="submit">{{ t("auth.logout") }}</button>
+        </form>
+      {% endif %}
+    </header>
+    <main>
+      {% block content %}{% endblock %}
+    </main>
+    <script>
+      window.APP_CONFIG = {
+        csrfToken: "{{ csrf_token() }}",
+        locale: "{{ locale }}",
+        messages: {{ i18n_catalog | tojson }}
+      };
+    </script>
+  </body>
+</html>

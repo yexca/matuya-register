@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <form method="post" action="{{ url_for('auth.login_post') }}">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    {% if error_message %}
+      <p role="alert">{{ error_message }}</p>
+    {% endif %}
+    <label for="username">{{ t("auth.username") }}</label>
+    <input id="username" name="username" autocomplete="username" required>
+    <label for="password">{{ t("auth.password") }}</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required>
+    <button type="submit">{{ t("auth.login") }}</button>
+  </form>
+{% endblock %}

@@ -1,0 +1,12 @@
+{
+  "app.title": "Matuya Register",
+  "auth.invalid_credentials": "Invalid username or password.",
+  "auth.login": "Sign in",
+  "auth.logout": "Sign out",
+  "auth.password": "Password",
+  "auth.username": "Username",
+  "error.auth.required": "Authentication is required.",
+  "error.csrf.invalid": "Invalid CSRF token.",
+  "error.locale.unsupported": "Unsupported locale.",
+  "nav.language": "Language"
+}
