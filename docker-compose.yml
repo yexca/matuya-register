@@ -1,0 +1,13 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8926:8926"
+    env_file:
+      - .env
+    volumes:
+      - matuya_data:/data
+    restart: unless-stopped
+
+volumes:
+  matuya_data:
