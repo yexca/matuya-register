@@ -1,5 +1,8 @@
-*.html
-test*
-__pycache__
+.env
+.venv
+__pycache__/
+.pytest_cache/
 *.pyc
-config.py
+*.db
+/data/
+/legacy/config.py
