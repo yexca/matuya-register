@@ -8,6 +8,7 @@ from .auth.service import AuthService
 from .config import load_config
 from .logging import init_logging
 from .security import init_security
+from .accounts.service import AccountService
 
 
 def create_app():
@@ -23,6 +24,7 @@ def create_app():
         AuthService(db.get_db()).ensure_initial_admin(
             config.admin_username, config.admin_password
         )
+        AccountService(db.get_db(), config=config).mark_interrupted_running_accounts()
     i18n.init_i18n(app)
     init_security(app)
     app.register_blueprint(auth_bp)
