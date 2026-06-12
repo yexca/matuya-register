@@ -6,6 +6,8 @@
   const accountsBody = document.querySelector("#accounts-body");
   const emptyState = document.querySelector("#empty-state");
   const flashMessage = document.querySelector("#flash-message");
+  const accountDetailsDialog = document.querySelector("#account-details");
+  const accountStore = new Map();
   const pollQueue = [];
   const activePolls = new Map();
   const maxPolls = 20;
@@ -60,35 +62,69 @@
     return msg("status." + status, status);
   }
 
+  function accountId(account) {
+    return account && account.id !== undefined && account.id !== null ? String(account.id) : "";
+  }
+
+  function rememberAccount(account) {
+    const id = accountId(account);
+    if (!id) {
+      return;
+    }
+    accountStore.set(id, Object.assign({}, accountStore.get(id) || {}, account));
+  }
+
   function updateEmptyState() {
     if (emptyState) {
       emptyState.hidden = accountsBody.querySelectorAll("tr").length > 0;
     }
   }
 
-  function createCell(field, text) {
+  function createCell(field, text, label) {
     const cell = document.createElement("td");
     cell.dataset.field = field;
+    if (label) {
+      cell.dataset.label = label;
+    }
     cell.textContent = text || "";
+    return cell;
+  }
+
+  function createCredentialCell(field, text, copyKind, label) {
+    const cell = document.createElement("td");
+    const wrapper = document.createElement("div");
+    const value = document.createElement("span");
+    const button = copyButton(copyKind, label);
+
+    cell.dataset.field = field;
+    wrapper.className = "credential-cell";
+    value.dataset.value = "";
+    value.textContent = text || "";
+    value.title = text || "";
+    wrapper.appendChild(value);
+    wrapper.appendChild(button);
+    cell.appendChild(wrapper);
     return cell;
   }
 
   function renderRow(account) {
     const row = document.createElement("tr");
     row.dataset.accountId = account.id;
-    row.appendChild(createCell("email", account.email));
-    row.appendChild(createCell("password", account.password));
-    row.appendChild(createCell("status", statusText(account.status)));
-    row.appendChild(createCell("error_message", account.error_message || ""));
-    row.appendChild(createCell("copy_count", String(account.copy_count || 0)));
-    row.appendChild(createCell("last_copied_at", account.last_copied_at || ""));
-    row.appendChild(createCell("created_at", account.created_at || ""));
-    row.appendChild(createCell("updated_at", account.updated_at || ""));
+    row.appendChild(createCredentialCell("email", account.email, "email", msg("accounts.copy_email", "Copy email")));
+    row.appendChild(
+      createCredentialCell("password", account.password, "password", msg("accounts.copy_password", "Copy password"))
+    );
+    row.appendChild(createCell("copy_count", String(account.copy_count || 0), msg("accounts.copy_count", "Copies")));
+    row.appendChild(createCell("status", statusText(account.status), msg("accounts.status", "Status")));
 
     const actions = document.createElement("td");
+    const detailsButton = document.createElement("button");
     actions.className = "actions";
-    actions.appendChild(copyButton("email", msg("accounts.copy_email", "Copy email")));
-    actions.appendChild(copyButton("password", msg("accounts.copy_password", "Copy password")));
+    actions.dataset.label = msg("accounts.details", "Details");
+    detailsButton.type = "button";
+    detailsButton.dataset.details = "";
+    detailsButton.textContent = msg("accounts.details", "Details");
+    actions.appendChild(detailsButton);
     row.appendChild(actions);
     updateRow(row, account);
     return row;
@@ -102,16 +138,65 @@
     return button;
   }
 
+  function setCredentialValue(row, field, text) {
+    const value = row.querySelector('[data-field="' + field + '"] [data-value]');
+    if (!value) {
+      return;
+    }
+    value.textContent = text || "";
+    value.title = text || "";
+  }
+
   function updateRow(row, account) {
+    rememberAccount(account);
     row.dataset.status = account.status;
-    row.querySelector('[data-field="email"]').textContent = account.email || "";
-    row.querySelector('[data-field="password"]').textContent = account.password || "";
+    setCredentialValue(row, "email", account.email);
+    setCredentialValue(row, "password", account.password);
     row.querySelector('[data-field="status"]').textContent = statusText(account.status);
-    row.querySelector('[data-field="error_message"]').textContent = account.error_message || "";
     row.querySelector('[data-field="copy_count"]').textContent = String(account.copy_count || 0);
-    row.querySelector('[data-field="last_copied_at"]').textContent = account.last_copied_at || "";
-    row.querySelector('[data-field="created_at"]').textContent = account.created_at || "";
-    row.querySelector('[data-field="updated_at"]').textContent = account.updated_at || "";
+    if (
+      accountDetailsDialog &&
+      accountDetailsDialog.open &&
+      accountDetailsDialog.dataset.accountId === accountId(account)
+    ) {
+      renderDetails(account);
+    }
+  }
+
+  function detailValue(account, field) {
+    if (field === "status") {
+      return statusText(account.status);
+    }
+    if (field === "copy_count") {
+      return String(account.copy_count || 0);
+    }
+    return account[field] || "-";
+  }
+
+  function renderDetails(account) {
+    if (!accountDetailsDialog) {
+      return;
+    }
+    accountDetailsDialog.dataset.accountId = accountId(account);
+    accountDetailsDialog.querySelectorAll("[data-detail-field]").forEach(function (field) {
+      field.textContent = detailValue(account, field.dataset.detailField);
+    });
+  }
+
+  function openDetails(row) {
+    if (!accountDetailsDialog || !row) {
+      return;
+    }
+    const account = accountStore.get(row.dataset.accountId);
+    if (!account) {
+      return;
+    }
+    renderDetails(account);
+    if (typeof accountDetailsDialog.showModal === "function") {
+      accountDetailsDialog.showModal();
+    } else {
+      accountDetailsDialog.setAttribute("open", "");
+    }
   }
 
   function upsertAccount(account, prepend) {
@@ -260,14 +345,21 @@
   });
 
   accountsBody.addEventListener("click", async function (event) {
+    const detailsButton = event.target.closest("button[data-details]");
+    if (detailsButton) {
+      openDetails(detailsButton.closest("tr"));
+      return;
+    }
+
     const button = event.target.closest("button[data-copy]");
     if (!button) {
       return;
     }
     const row = button.closest("tr");
     const kind = button.dataset.copy;
-    const field = row.querySelector('[data-field="' + (kind === "email" ? "email" : "password") + '"]');
-    const text = field ? field.textContent : "";
+    const account = accountStore.get(row.dataset.accountId) || {};
+    const field = row.querySelector('[data-field="' + (kind === "email" ? "email" : "password") + '"] [data-value]');
+    const text = account[kind] || (field ? field.textContent : "");
     button.disabled = true;
     try {
       await copyText(text);
@@ -287,6 +379,7 @@
   });
 
   (config.accounts || []).forEach(function (account) {
+    rememberAccount(account);
     if (account.status === "pending" || account.status === "running") {
       enqueuePoll(account.id);
     }

@@ -25,6 +25,7 @@ def login_post():
             render_template("login.html", error_message=t("auth.invalid_credentials")),
             401,
         )
+    session.permanent = True
     session["user_id"] = user.id
     session["username"] = user.username
     return redirect(request.args.get("next") or url_for("accounts.index"))

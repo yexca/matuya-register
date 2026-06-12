@@ -159,8 +159,9 @@ a:focus-visible {
 
 table {
   width: 100%;
-  min-width: 1080px;
+  min-width: 720px;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 th,
@@ -185,11 +186,22 @@ tbody tr:last-child td {
 }
 
 td[data-field="email"],
-td[data-field="password"],
-td[data-field="error_message"] {
-  max-width: 220px;
+td[data-field="password"] {
+  max-width: 280px;
+}
+
+.credential-cell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.credential-cell [data-value] {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 tr[data-status="success"] td[data-field="status"] {
@@ -209,8 +221,72 @@ tr[data-status="pending"] td[data-field="status"] {
 }
 
 .actions {
+  white-space: nowrap;
+}
+
+.details-dialog {
+  width: min(560px, calc(100% - 32px));
+  max-height: calc(100dvh - 48px);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 24px 72px rgb(23 32 38 / 24%);
+}
+
+.details-dialog::backdrop {
+  background: rgb(23 32 38 / 42%);
+}
+
+.details-panel {
+  display: grid;
+  max-height: calc(100dvh - 48px);
+  overflow: hidden;
+}
+
+.details-header {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 12px;
+  min-height: 0;
+  padding: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.details-header h2 {
+  margin: 0 auto 0 0;
+  font-size: 18px;
+}
+
+.details-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  overflow: auto;
+}
+
+.details-list div {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.details-list div:last-child {
+  border-bottom: 0;
+}
+
+.details-list dt {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.details-list dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .empty-state {
@@ -268,5 +344,105 @@ form[action$="/login"] {
 
   .pagination {
     justify-content: flex-start;
+  }
+
+  .table-wrap {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  table,
+  thead,
+  tbody,
+  tr,
+  td {
+    display: block;
+  }
+
+  table {
+    min-width: 0;
+  }
+
+  thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  tbody {
+    display: grid;
+    gap: 10px;
+  }
+
+  tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--panel);
+  }
+
+  th,
+  td {
+    padding: 0;
+    border-bottom: 0;
+    white-space: normal;
+  }
+
+  td[data-field="email"],
+  td[data-field="password"] {
+    grid-column: 1 / -1;
+    max-width: none;
+  }
+
+  td[data-field="copy_count"],
+  td[data-field="status"],
+  td.actions {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+  }
+
+  td[data-field="copy_count"],
+  td[data-field="status"] {
+    gap: 6px;
+    color: var(--text);
+  }
+
+  td[data-field="copy_count"]::before,
+  td[data-field="status"]::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  td.actions {
+    justify-content: flex-end;
+  }
+
+  .details-dialog {
+    width: calc(100% - 20px);
+    max-height: calc(100dvh - 20px);
+  }
+
+  .details-panel {
+    max-height: calc(100dvh - 20px);
+  }
+
+  .details-header {
+    padding: 12px;
+  }
+
+  .details-list div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    padding: 10px 12px;
   }
 }

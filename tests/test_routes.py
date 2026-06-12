@@ -63,6 +63,20 @@ def test_get_accounts_returns_pagination(client, login, db_conn):
     assert response.json["items"][0]["email"] == "page@example.invalid"
 
 
+def test_accounts_page_uses_compact_rows(client, login, db_conn):
+    AccountRepository(db_conn).create_pending("compact@example.invalid", "Secret123", None)
+    login()
+
+    response = client.get("/")
+    html = response.data.decode("utf-8")
+
+    assert response.status_code == 200
+    assert html.count("<th>") == 5
+    assert 'data-copy="email"' in html
+    assert 'data-copy="password"' in html
+    assert "data-details" in html
+
+
 def test_get_account_not_found_returns_404(client, login):
     login()
 

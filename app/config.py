@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from dataclasses import dataclass
 
 
@@ -30,6 +31,7 @@ class AppConfig:
     default_locale: str
     supported_locales: tuple[str, ...]
     session_cookie_secure: bool
+    session_lifetime_days: int
 
     def to_flask_config(self) -> dict[str, object]:
         return {
@@ -37,6 +39,7 @@ class AppConfig:
             "SESSION_COOKIE_HTTPONLY": True,
             "SESSION_COOKIE_SAMESITE": "Lax",
             "SESSION_COOKIE_SECURE": self.session_cookie_secure,
+            "PERMANENT_SESSION_LIFETIME": timedelta(days=self.session_lifetime_days),
         }
 
 
@@ -85,6 +88,7 @@ def load_config() -> AppConfig:
         default_locale=default_locale,
         supported_locales=supported,
         session_cookie_secure=_env_bool("SESSION_COOKIE_SECURE", False),
+        session_lifetime_days=_env_int("SESSION_LIFETIME_DAYS", "30"),
     )
     _validate(config)
     return config
@@ -127,6 +131,7 @@ def _validate(config: AppConfig) -> None:
         "REGISTER_MAX_WAIT_SECONDS": config.register_max_wait_seconds,
         "REGISTER_POLL_INTERVAL_SECONDS": config.register_poll_interval_seconds,
         "HTTP_TIMEOUT_SECONDS": config.http_timeout_seconds,
+        "SESSION_LIFETIME_DAYS": config.session_lifetime_days,
     }
     for name, value in positive.items():
         if value <= 0:
