@@ -161,7 +161,11 @@ Matuya 注册记录表。
 - 批量注册调用 `POST /api/register-batch`。
 - 对 `pending` 和 `running` 记录轮询 `GET /api/accounts/<id>`。
 - 同时最多轮询 20 条。
-- 复制邮箱后调用 `POST /api/accounts/<id>/copy-account` 增加复制次数。
-- 复制密码不增加复制次数。
+- 账号列表中的邮箱和密码使用完整文本渲染，由 CSS 根据可用宽度单行省略；宽度足够时应显示完整值。
+- 邮箱和密码文本本身可点击复制，旁边的小 `copy` 按钮提供同样的复制入口。
+- 自动复制优先使用 `navigator.clipboard.writeText()`，被嵌入式浏览器或移动端 WebView 拒绝时退回到 `document.execCommand("copy")`；仍失败时显示手动复制弹层并选中文本。
+- 只有邮箱自动复制成功后才调用 `POST /api/accounts/<id>/copy-account` 增加复制次数；打开手动复制弹层不增加计数。
+- 复制密码不调用复制计数接口，也不增加复制次数。
+- 详情使用自定义弹层而非原生 `<dialog>`，以避免移动端兼容性问题；内容区可滚动，关闭按钮位于弹层底部。
 - 动态文案来自 `window.APP_CONFIG.messages`。
 

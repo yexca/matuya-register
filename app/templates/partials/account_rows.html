@@ -3,14 +3,30 @@
   <tr data-account-id="{{ account.id }}" data-status="{{ account.status }}">
     <td data-field="email">
       <div class="credential-cell">
-        <span data-value title="{{ account.email }}">{{ account.email }}</span>
-        <button type="button" data-copy="email">{{ t("accounts.copy_email") }}</button>
+        <button
+          type="button"
+          class="credential-value"
+          data-copy="email"
+          data-value
+          data-full-value="{{ account.email|e }}"
+          title="{{ account.email }}"
+          aria-label="{{ t('accounts.copy_email') }}"
+        >{{ account.email }}</button>
+        <button type="button" class="copy-button" data-copy="email" aria-label="{{ t('accounts.copy_email') }}">copy</button>
       </div>
     </td>
     <td data-field="password">
       <div class="credential-cell">
-        <span data-value title="{{ account.password }}">{{ account.password }}</span>
-        <button type="button" data-copy="password">{{ t("accounts.copy_password") }}</button>
+        <button
+          type="button"
+          class="credential-value"
+          data-copy="password"
+          data-value
+          data-full-value="{{ account.password|e }}"
+          title="{{ account.password }}"
+          aria-label="{{ t('accounts.copy_password') }}"
+        >{{ account.password }}</button>
+        <button type="button" class="copy-button" data-copy="password" aria-label="{{ t('accounts.copy_password') }}">copy</button>
       </div>
     </td>
     <td data-field="copy_count" data-label="{{ t('accounts.copy_count') }}">{{ account.copy_count }}</td>

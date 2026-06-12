@@ -7,6 +7,8 @@
   const emptyState = document.querySelector("#empty-state");
   const flashMessage = document.querySelector("#flash-message");
   const accountDetailsDialog = document.querySelector("#account-details");
+  const manualCopyDialog = document.querySelector("#manual-copy");
+  const manualCopyText = document.querySelector("#manual-copy-text");
   const accountStore = new Map();
   const pollQueue = [];
   const activePolls = new Map();
@@ -93,14 +95,19 @@
   function createCredentialCell(field, text, copyKind, label) {
     const cell = document.createElement("td");
     const wrapper = document.createElement("div");
-    const value = document.createElement("span");
+    const value = document.createElement("button");
     const button = copyButton(copyKind, label);
 
     cell.dataset.field = field;
     wrapper.className = "credential-cell";
+    value.type = "button";
+    value.className = "credential-value";
+    value.dataset.copy = copyKind;
     value.dataset.value = "";
+    value.dataset.fullValue = text || "";
     value.textContent = text || "";
     value.title = text || "";
+    value.setAttribute("aria-label", label);
     wrapper.appendChild(value);
     wrapper.appendChild(button);
     cell.appendChild(wrapper);
@@ -133,8 +140,10 @@
   function copyButton(kind, label) {
     const button = document.createElement("button");
     button.type = "button";
+    button.className = "copy-button";
     button.dataset.copy = kind;
-    button.textContent = label;
+    button.textContent = "copy";
+    button.setAttribute("aria-label", label);
     return button;
   }
 
@@ -145,6 +154,36 @@
     }
     value.textContent = text || "";
     value.title = text || "";
+    value.dataset.fullValue = text || "";
+  }
+
+  function detailsAreOpen() {
+    return accountDetailsDialog && !accountDetailsDialog.hidden;
+  }
+
+  function manualCopyIsOpen() {
+    return manualCopyDialog && !manualCopyDialog.hidden;
+  }
+
+  function openManualCopy(text) {
+    if (!manualCopyDialog || !manualCopyText) {
+      return;
+    }
+    manualCopyText.value = text || "";
+    manualCopyDialog.hidden = false;
+    document.body.classList.add("details-open");
+    manualCopyText.focus();
+    manualCopyText.select();
+  }
+
+  function closeManualCopy() {
+    if (!manualCopyDialog) {
+      return;
+    }
+    manualCopyDialog.hidden = true;
+    if (!detailsAreOpen()) {
+      document.body.classList.remove("details-open");
+    }
   }
 
   function updateRow(row, account) {
@@ -156,7 +195,7 @@
     row.querySelector('[data-field="copy_count"]').textContent = String(account.copy_count || 0);
     if (
       accountDetailsDialog &&
-      accountDetailsDialog.open &&
+      detailsAreOpen() &&
       accountDetailsDialog.dataset.accountId === accountId(account)
     ) {
       renderDetails(account);
@@ -192,11 +231,17 @@
       return;
     }
     renderDetails(account);
-    if (typeof accountDetailsDialog.showModal === "function") {
-      accountDetailsDialog.showModal();
-    } else {
-      accountDetailsDialog.setAttribute("open", "");
+    accountDetailsDialog.hidden = false;
+    document.body.classList.add("details-open");
+    accountDetailsDialog.querySelector("[data-details-close]")?.focus();
+  }
+
+  function closeDetails() {
+    if (!accountDetailsDialog) {
+      return;
     }
+    accountDetailsDialog.hidden = true;
+    document.body.classList.remove("details-open");
   }
 
   function upsertAccount(account, prepend) {
@@ -276,18 +321,38 @@
 
   async function copyText(text) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(text);
-      return;
+      try {
+        await navigator.clipboard.writeText(text);
+        return;
+      } catch (error) {
+        // Some embedded/mobile browsers expose the API but still deny writes.
+      }
     }
     const textarea = document.createElement("textarea");
     textarea.value = text;
     textarea.setAttribute("readonly", "");
     textarea.style.position = "fixed";
     textarea.style.left = "-9999px";
+    textarea.style.top = "0";
     document.body.appendChild(textarea);
+    textarea.focus();
     textarea.select();
-    document.execCommand("copy");
+    textarea.setSelectionRange(0, textarea.value.length);
+    const copied = document.execCommand("copy");
     document.body.removeChild(textarea);
+    if (!copied) {
+      throw new Error(msg("accounts.copy_failed", "Copy failed."));
+    }
+  }
+
+  async function copyCredential(text) {
+    try {
+      await copyText(text);
+      return true;
+    } catch (error) {
+      openManualCopy(text);
+      return false;
+    }
   }
 
   document.querySelector("#single-register-form")?.addEventListener("submit", async function (event) {
@@ -351,7 +416,7 @@
       return;
     }
 
-    const button = event.target.closest("button[data-copy]");
+    const button = event.target.closest("[data-copy]");
     if (!button) {
       return;
     }
@@ -359,22 +424,48 @@
     const kind = button.dataset.copy;
     const account = accountStore.get(row.dataset.accountId) || {};
     const field = row.querySelector('[data-field="' + (kind === "email" ? "email" : "password") + '"] [data-value]');
-    const text = account[kind] || (field ? field.textContent : "");
+    const text = account[kind] || (field ? field.dataset.fullValue || field.textContent : "");
     button.disabled = true;
     try {
-      await copyText(text);
-      if (kind === "email") {
+      const copied = await copyCredential(text);
+      if (copied && kind === "email") {
         const payload = await requestJson(
           "/api/accounts/" + row.dataset.accountId + "/copy-account",
           { method: "POST", headers: headers(), body: "{}" }
         );
         updateRow(row, payload.account);
       }
-      showMessage(msg("accounts.copy_success", "Copied."), false);
+      showMessage(
+        copied
+          ? msg("accounts.copy_success", "Copied.")
+          : msg("accounts.manual_copy_opened", "Copy permission was denied. Select and copy the text manually."),
+        !copied
+      );
     } catch (error) {
       showMessage(error.message || msg("accounts.copy_failed", "Copy failed."), true);
     } finally {
       button.disabled = false;
+    }
+  });
+
+  accountDetailsDialog?.addEventListener("click", function (event) {
+    if (event.target.closest("[data-details-close]") || event.target === accountDetailsDialog) {
+      closeDetails();
+    }
+  });
+
+  manualCopyDialog?.addEventListener("click", function (event) {
+    if (event.target.closest("[data-manual-copy-close]") || event.target === manualCopyDialog) {
+      closeManualCopy();
+    }
+  });
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && detailsAreOpen()) {
+      closeDetails();
+    }
+    if (event.key === "Escape" && manualCopyIsOpen()) {
+      closeManualCopy();
     }
   });
 

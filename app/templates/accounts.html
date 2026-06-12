@@ -49,15 +49,10 @@
     </p>
   </section>
 
-  <dialog id="account-details" class="details-dialog" aria-labelledby="account-details-title">
+  <section id="account-details" class="details-dialog" role="dialog" aria-modal="true" aria-labelledby="account-details-title" hidden>
     <div class="details-panel">
       <header class="details-header">
         <h2 id="account-details-title">{{ t("accounts.details") }}</h2>
-        <form method="dialog">
-          <button type="submit" class="details-close" aria-label="{{ t('accounts.close') }}">
-            {{ t("accounts.close") }}
-          </button>
-        </form>
       </header>
       <dl class="details-list">
         <div>
@@ -101,8 +96,30 @@
           <dd data-detail-field="completed_at"></dd>
         </div>
       </dl>
+      <footer class="details-actions">
+        <button type="button" class="details-close" data-details-close aria-label="{{ t('accounts.close') }}">
+          {{ t("accounts.close") }}
+        </button>
+      </footer>
     </div>
-  </dialog>
+  </section>
+
+  <section id="manual-copy" class="details-dialog" role="dialog" aria-modal="true" aria-labelledby="manual-copy-title" hidden>
+    <div class="manual-copy-panel">
+      <header class="details-header">
+        <h2 id="manual-copy-title">{{ t("accounts.manual_copy_title") }}</h2>
+      </header>
+      <div class="manual-copy-body">
+        <p>{{ t("accounts.manual_copy_hint") }}</p>
+        <textarea id="manual-copy-text" readonly></textarea>
+      </div>
+      <footer class="details-actions">
+        <button type="button" class="details-close" data-manual-copy-close aria-label="{{ t('accounts.close') }}">
+          {{ t("accounts.close") }}
+        </button>
+      </footer>
+    </div>
+  </section>
 
   <footer class="pagination">
     {% set prev_page = accounts.page - 1 %}
