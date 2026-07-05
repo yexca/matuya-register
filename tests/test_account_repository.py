@@ -13,6 +13,16 @@ def test_repository_create_pending_and_duplicate(db_conn):
     with pytest.raises(DuplicateEmailError):
         repo.create_pending("a@example.invalid", "Other123", None)
 
+    failed = repo.create_failed(
+        "failed-create@example.invalid",
+        "Secret123",
+        None,
+        "error.registration.mail_service_failed",
+    )
+    assert failed.status == "failed"
+    assert failed.error_message == "error.registration.mail_service_failed"
+    assert failed.completed_at
+
 
 def test_repository_status_updates_and_copy_count(db_conn):
     repo = AccountRepository(db_conn)
@@ -34,10 +44,14 @@ def test_repository_status_updates_and_copy_count(db_conn):
     assert success.completed_at
     assert success.error_message is None
 
-    copied = repo.increment_copy_count(account.id)
-    copied = repo.increment_copy_count(account.id)
-    assert copied.copy_count == 2
-    assert copied.last_copied_at
+    copied = repo.increment_credential_copy_count(account.id, "email")
+    copied = repo.increment_credential_copy_count(account.id, "email")
+    copied = repo.increment_credential_copy_count(account.id, "password")
+    assert copied.copy_count == 3
+    assert copied.email_copy_count == 2
+    assert copied.password_copy_count == 1
+    assert copied.last_email_copied_at
+    assert copied.last_password_copied_at
 
 
 def test_repository_list_filter_pagination_and_interrupted(db_conn):
@@ -63,3 +77,19 @@ def test_repository_list_filter_pagination_and_interrupted(db_conn):
     interrupted = repo.get(third.id)
     assert interrupted.status == "failed"
     assert interrupted.error_message == "error.registration.interrupted"
+
+
+def test_repository_bucket_filters_used_unused_failed(db_conn):
+    repo = AccountRepository(db_conn)
+    used = repo.create_pending("used@example.invalid", "Secret123", None)
+    unused = repo.create_pending("unused@example.invalid", "Secret123", None)
+    failed = repo.create_pending("failed@example.invalid", "Secret123", None)
+    repo.mark_success(used.id)
+    repo.mark_success(unused.id)
+    repo.mark_failed(failed.id, "error.registration.unknown")
+    repo.increment_credential_copy_count(used.id, "email")
+    repo.increment_credential_copy_count(used.id, "password")
+
+    assert repo.list(bucket="used").items[0].email == "used@example.invalid"
+    assert repo.list(bucket="failed").items[0].email == "failed@example.invalid"
+    assert repo.list(bucket="unused").items[0].email == "unused@example.invalid"

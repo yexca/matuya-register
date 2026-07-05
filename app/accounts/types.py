@@ -20,6 +20,10 @@ class Account:
     error_message: str | None
     copy_count: int
     last_copied_at: str | None
+    email_copy_count: int
+    password_copy_count: int
+    last_email_copied_at: str | None
+    last_password_copied_at: str | None
     created_by: int | None
     started_at: str | None
     completed_at: str | None

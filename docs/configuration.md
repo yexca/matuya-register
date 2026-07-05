@@ -89,4 +89,4 @@ address suffix.
 | `DEFAULT_LOCALE` | `en` | Default UI locale. |
 | `SUPPORTED_LOCALES` | `en,zh-CN` | Runtime locale list. |
 | `SESSION_COOKIE_SECURE` | `false` | Set to `true` behind HTTPS. |
-| `SESSION_LIFETIME_DAYS` | `30` | Session lifetime. |
+| `SESSION_LIFETIME_DAYS` | `30` | Administrator account session token lifetime in days. |

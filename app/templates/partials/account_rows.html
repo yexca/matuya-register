@@ -1,38 +1,21 @@
 {% for account in accounts.items %}
-  {% set error_key = account.error_message %}
-  <tr data-account-id="{{ account.id }}" data-status="{{ account.status }}">
-    <td data-field="email">
-      <div class="credential-cell">
-        <button
-          type="button"
-          class="credential-value"
-          data-copy="email"
-          data-value
-          data-full-value="{{ account.email|e }}"
-          title="{{ account.email }}"
-          aria-label="{{ t('accounts.copy_email') }}"
-        >{{ account.email }}</button>
-        <button type="button" class="copy-button" data-copy="email" aria-label="{{ t('accounts.copy_email') }}">copy</button>
-      </div>
-    </td>
-    <td data-field="password">
-      <div class="credential-cell">
-        <button
-          type="button"
-          class="credential-value"
-          data-copy="password"
-          data-value
-          data-full-value="{{ account.password|e }}"
-          title="{{ account.password }}"
-          aria-label="{{ t('accounts.copy_password') }}"
-        >{{ account.password }}</button>
-        <button type="button" class="copy-button" data-copy="password" aria-label="{{ t('accounts.copy_password') }}">copy</button>
-      </div>
-    </td>
-    <td data-field="copy_count" data-label="{{ t('accounts.copy_count') }}">{{ account.copy_count }}</td>
-    <td data-field="status" data-label="{{ t('accounts.status') }}">{{ t("status." ~ account.status) }}</td>
-    <td class="actions" data-label="{{ t('accounts.details') }}">
-      <button type="button" data-details>{{ t("accounts.details") }}</button>
-    </td>
-  </tr>
+  {% if account.status == "failed" %}
+    {% set ui_status = "failed" %}
+  {% elif account.status in ["pending", "running"] %}
+    {% set ui_status = "pending" %}
+  {% elif account.email_copy_count >= 1 and account.password_copy_count >= 1 %}
+    {% set ui_status = "used" %}
+  {% else %}
+    {% set ui_status = "unused" %}
+  {% endif %}
+  <button
+    type="button"
+    class="account-row"
+    data-account-id="{{ account.id }}"
+    data-status="{{ ui_status }}"
+    data-details
+  >
+    <span class="account-row-email">{{ account.email }}</span>
+    <span class="status-pill" data-field="status">{{ t("status." ~ ui_status) }}</span>
+  </button>
 {% endfor %}

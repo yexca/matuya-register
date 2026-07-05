@@ -16,9 +16,13 @@ Response:
     "email": "fake-user@mail-domain.example.invalid",
     "password": "Aa123456789012",
     "status": "pending",
+    "raw_status": "pending",
+    "bucket": "unused",
     "error_key": null,
     "error_message": "",
-    "copy_count": 0
+    "copy_count": 0,
+    "email_copy_count": 0,
+    "password_copy_count": 0
   }
 }
 ```
@@ -59,6 +63,7 @@ Query parameters:
 | Parameter | Example | Description |
 | --- | --- | --- |
 | `status` | `success` | Optional status filter. |
+| `bucket` | `unused` | Optional UI bucket filter: `unused`, `used`, or `failed`. Defaults to `unused`. |
 | `page` | `1` | Page number. |
 | `page_size` | `20` | Page size. |
 
@@ -71,10 +76,14 @@ Response:
       "id": 301,
       "email": "fake-history@mail-domain.example.invalid",
       "password": "Aa123456789012",
-      "status": "success",
+      "status": "unused",
+      "raw_status": "success",
+      "bucket": "unused",
       "error_key": null,
       "error_message": "",
-      "copy_count": 2
+      "copy_count": 2,
+      "email_copy_count": 2,
+      "password_copy_count": 0
     }
   ],
   "page": 1,
@@ -93,14 +102,16 @@ Returns one account.
     "id": 301,
     "email": "fake-history@mail-domain.example.invalid",
     "password": "Aa123456789012",
-    "status": "success",
+    "status": "unused",
+    "raw_status": "success",
+    "bucket": "unused",
     "error_key": null,
     "error_message": ""
   }
 }
 ```
 
-## `POST /api/accounts/<id>/copy-account`
+## `POST /api/accounts/<id>/copy-email`
 
 Records a successful email-copy action and returns the updated account.
 
@@ -109,10 +120,27 @@ Records a successful email-copy action and returns the updated account.
   "account": {
     "id": 301,
     "email": "fake-history@mail-domain.example.invalid",
-    "copy_count": 3
+    "email_copy_count": 3
   }
 }
 ```
+
+## `POST /api/accounts/<id>/copy-password`
+
+Records a successful password-copy action and returns the updated account.
+
+```json
+{
+  "account": {
+    "id": 301,
+    "password_copy_count": 2,
+    "bucket": "used"
+  }
+}
+```
+
+`POST /api/accounts/<id>/copy-account` remains as a compatibility alias for
+`copy-email`.
 
 ## Error Format
 

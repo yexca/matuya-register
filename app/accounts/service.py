@@ -82,9 +82,15 @@ class AccountService:
 
     def enqueue_batch_register(self, count, created_by):
         count = self._validate_batch_count(count)
-        accounts = [self._create_unique_account(created_by) for _ in range(count)]
+        accounts = []
+        for _ in range(count):
+            try:
+                accounts.append(self._create_unique_account(created_by))
+            except (EmailGenerateExhaustedError, MailError) as exc:
+                accounts.append(self._create_failed_account(created_by, exc))
         for account in accounts:
-            self._submit_registration(account.id)
+            if account.status == "pending":
+                self._submit_registration(account.id)
         return accounts
 
     def run_registration(self, account_id):
@@ -93,15 +99,22 @@ class AccountService:
                 return self._run_registration(account_id, db_module.get_db())
         return self._run_registration(account_id, self.db)
 
-    def list_accounts(self, status=None, page=1, page_size=None):
+    def list_accounts(self, status=None, bucket=None, page=1, page_size=None):
         page_size = page_size or self.config.page_size_default
-        return AccountRepository(self.db).list(status=status, page=page, page_size=page_size)
+        return AccountRepository(self.db).list(
+            status=status, bucket=bucket, page=page, page_size=page_size
+        )
 
     def get_account(self, account_id):
         return AccountRepository(self.db).get(account_id)
 
     def record_copy(self, account_id):
         return AccountRepository(self.db).increment_copy_count(account_id)
+
+    def record_credential_copy(self, account_id, credential):
+        return AccountRepository(self.db).increment_credential_copy_count(
+            account_id, credential
+        )
 
     def mark_interrupted_running_accounts(self):
         AccountRepository(self.db).mark_interrupted_running_accounts()
@@ -183,6 +196,28 @@ class AccountService:
         if last_error is not None:
             raise last_error
         raise EmailGenerateExhaustedError("email generation exhausted")
+
+    def _create_failed_account(self, created_by, exc):
+        repo = AccountRepository(self.db)
+        generator = AccountGenerator(self._failure_mail_suffix())
+        error_key = normalize_registration_error(exc)
+        for _ in range(10):
+            email = generator.generate_email()
+            password = generator.generate_password()
+            try:
+                account = repo.create_failed(email, password, created_by, error_key)
+                self._log(account, "create_account", "failed", time.monotonic(), error_key)
+                return account
+            except DuplicateEmailError:
+                logger.info("email conflict while creating failed account", extra={"email": email})
+        raise EmailGenerateExhaustedError("email generation exhausted")
+
+    def _failure_mail_suffix(self):
+        if self.config.mail_suffix:
+            return self.config.mail_suffix
+        if self.config.mail_tm_suffix:
+            return self.config.mail_tm_suffix
+        return "@failed.local"
 
     def _submit_registration(self, account_id):
         if self.runner is not None:

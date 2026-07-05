@@ -160,6 +160,27 @@ def test_batch_single_failure_does_not_affect_other_accounts(app, db_conn):
     assert good_result.status == "success"
 
 
+def test_batch_provider_prepare_failure_creates_failed_record(app, db_conn):
+    bad = FakeProvider(
+        "mail_tm",
+        "bad@example.invalid",
+        prepare_error=MailSearchError("mail service failed"),
+    )
+    service = AccountService(
+        db_conn,
+        config=app.config["APP_CONFIG"],
+        runner=None,
+        mail_provider=FakeFallbackProvider([bad]),
+        matuya_client=FakeMatuyaClient(),
+        generator=SequenceGenerator([]),
+    )
+
+    account = service.enqueue_batch_register(1, created_by=None)[0]
+
+    assert account.status == "failed"
+    assert account.error_message == "error.registration.mail_service_failed"
+
+
 def test_email_conflict_retries_then_succeeds(app, db_conn):
     AccountRepository(db_conn).create_pending("taken@example.invalid", "Secret123", None)
     service = make_service(

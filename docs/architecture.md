@@ -68,9 +68,19 @@ The main table is `matuya_accounts`.
 | `password` | Generated target login password. Stored for admin display. |
 | `status` | `pending`, `running`, `success`, or `failed`. |
 | `error_message` | Stable error key. |
-| `copy_count` | Number of successful email copy actions. |
+| `email_copy_count` / `password_copy_count` | Successful copy actions per credential. |
+| `copy_count` | Backward-compatible total copy count. |
 | `created_by` | Administrator user id. |
 | `started_at` / `completed_at` | Registration task timing. |
+
+The mobile UI groups accounts into display buckets that are intentionally
+separate from the registration task status:
+
+| Bucket | Rule |
+| --- | --- |
+| `unused` | Pending, running, or successful accounts that have not crossed the used threshold. |
+| `used` | Successful accounts with at least one email copy and at least one password copy. |
+| `failed` | Failed registrations. |
 
 Passwords are stored in plaintext because the admin UI must display and copy
 them. Protect the database and backups accordingly.

@@ -6,6 +6,7 @@
   const accountsBody = document.querySelector("#accounts-body");
   const emptyState = document.querySelector("#empty-state");
   const flashMessage = document.querySelector("#flash-message");
+  const registerForm = document.querySelector("#register-form");
   const accountDetailsDialog = document.querySelector("#account-details");
   const manualCopyDialog = document.querySelector("#manual-copy");
   const manualCopyText = document.querySelector("#manual-copy-text");
@@ -14,8 +15,24 @@
   const activePolls = new Map();
   const maxPolls = 20;
   const pollIntervalMs = 2500;
+  const dbName = "matuya-register";
+  const dbVersion = 1;
+
+  document.querySelector('form[action$="/logout"]')?.addEventListener("submit", function () {
+    if ("indexedDB" in window) {
+      indexedDB.deleteDatabase(dbName);
+    }
+    if ("caches" in window) {
+      caches.keys().then(function (keys) {
+        keys.forEach(function (key) {
+          caches.delete(key);
+        });
+      });
+    }
+  });
 
   if (!accountsBody) {
+    registerServiceWorker();
     return;
   }
 
@@ -54,18 +71,21 @@
     return payload;
   }
 
-  function setBusy(form, busy) {
-    Array.from(form.elements).forEach(function (element) {
-      element.disabled = busy;
-    });
-  }
-
-  function statusText(status) {
-    return msg("status." + status, status);
+  function currentBucket() {
+    return new URLSearchParams(window.location.search).get("bucket") || "unused";
   }
 
   function accountId(account) {
     return account && account.id !== undefined && account.id !== null ? String(account.id) : "";
+  }
+
+  function shouldShow(account) {
+    return (account.bucket || "unused") === currentBucket();
+  }
+
+  function shouldPoll(account) {
+    const status = account.raw_status || account.status;
+    return status === "pending" || status === "running";
   }
 
   function rememberAccount(account) {
@@ -73,88 +93,67 @@
     if (!id) {
       return;
     }
-    accountStore.set(id, Object.assign({}, accountStore.get(id) || {}, account));
+    const merged = Object.assign({}, accountStore.get(id) || {}, account);
+    accountStore.set(id, merged);
+    cacheAccount(merged);
   }
 
   function updateEmptyState() {
     if (emptyState) {
-      emptyState.hidden = accountsBody.querySelectorAll("tr").length > 0;
+      emptyState.hidden = accountsBody.querySelectorAll("[data-account-id]").length > 0;
     }
   }
 
-  function createCell(field, text, label) {
-    const cell = document.createElement("td");
-    cell.dataset.field = field;
-    if (label) {
-      cell.dataset.label = label;
-    }
-    cell.textContent = text || "";
-    return cell;
-  }
-
-  function createCredentialCell(field, text, copyKind, label) {
-    const cell = document.createElement("td");
-    const wrapper = document.createElement("div");
-    const value = document.createElement("button");
-    const button = copyButton(copyKind, label);
-
-    cell.dataset.field = field;
-    wrapper.className = "credential-cell";
-    value.type = "button";
-    value.className = "credential-value";
-    value.dataset.copy = copyKind;
-    value.dataset.value = "";
-    value.dataset.fullValue = text || "";
-    value.textContent = text || "";
-    value.title = text || "";
-    value.setAttribute("aria-label", label);
-    wrapper.appendChild(value);
-    wrapper.appendChild(button);
-    cell.appendChild(wrapper);
-    return cell;
+  function statusText(status) {
+    return msg("status." + status, status);
   }
 
   function renderRow(account) {
-    const row = document.createElement("tr");
+    const row = document.createElement("button");
+    const email = document.createElement("span");
+    const status = document.createElement("span");
+    row.type = "button";
+    row.className = "account-row";
     row.dataset.accountId = account.id;
-    row.appendChild(createCredentialCell("email", account.email, "email", msg("accounts.copy_email", "Copy email")));
-    row.appendChild(
-      createCredentialCell("password", account.password, "password", msg("accounts.copy_password", "Copy password"))
-    );
-    row.appendChild(createCell("copy_count", String(account.copy_count || 0), msg("accounts.copy_count", "Copies")));
-    row.appendChild(createCell("status", statusText(account.status), msg("accounts.status", "Status")));
-
-    const actions = document.createElement("td");
-    const detailsButton = document.createElement("button");
-    actions.className = "actions";
-    actions.dataset.label = msg("accounts.details", "Details");
-    detailsButton.type = "button";
-    detailsButton.dataset.details = "";
-    detailsButton.textContent = msg("accounts.details", "Details");
-    actions.appendChild(detailsButton);
-    row.appendChild(actions);
+    row.dataset.details = "";
+    email.className = "account-row-email";
+    status.className = "status-pill";
+    status.dataset.field = "status";
+    row.appendChild(email);
+    row.appendChild(status);
     updateRow(row, account);
     return row;
   }
 
-  function copyButton(kind, label) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "copy-button";
-    button.dataset.copy = kind;
-    button.textContent = "copy";
-    button.setAttribute("aria-label", label);
-    return button;
+  function updateRow(row, account) {
+    rememberAccount(account);
+    row.dataset.status = account.status;
+    row.querySelector(".account-row-email").textContent = account.email || "";
+    row.querySelector('[data-field="status"]').textContent = statusText(account.status);
+    if (detailsAreOpen() && accountDetailsDialog.dataset.accountId === accountId(account)) {
+      renderDetails(account);
+    }
   }
 
-  function setCredentialValue(row, field, text) {
-    const value = row.querySelector('[data-field="' + field + '"] [data-value]');
-    if (!value) {
-      return;
+  function upsertAccount(account, prepend) {
+    rememberAccount(account);
+    let row = accountsBody.querySelector('[data-account-id="' + account.id + '"]');
+    if (row) {
+      updateRow(row, account);
+    } else if (shouldShow(account)) {
+      row = renderRow(account);
+      if (prepend && accountsBody.firstChild) {
+        accountsBody.insertBefore(row, accountsBody.firstChild);
+      } else {
+        accountsBody.appendChild(row);
+      }
     }
-    value.textContent = text || "";
-    value.title = text || "";
-    value.dataset.fullValue = text || "";
+    updateEmptyState();
+    if (shouldPoll(account)) {
+      enqueuePoll(account.id);
+    } else {
+      stopPoll(account.id);
+    }
   }
 
   function detailsAreOpen() {
@@ -165,49 +164,12 @@
     return manualCopyDialog && !manualCopyDialog.hidden;
   }
 
-  function openManualCopy(text) {
-    if (!manualCopyDialog || !manualCopyText) {
-      return;
-    }
-    manualCopyText.value = text || "";
-    manualCopyDialog.hidden = false;
-    document.body.classList.add("details-open");
-    manualCopyText.focus();
-    manualCopyText.select();
-  }
-
-  function closeManualCopy() {
-    if (!manualCopyDialog) {
-      return;
-    }
-    manualCopyDialog.hidden = true;
-    if (!detailsAreOpen()) {
-      document.body.classList.remove("details-open");
-    }
-  }
-
-  function updateRow(row, account) {
-    rememberAccount(account);
-    row.dataset.status = account.status;
-    setCredentialValue(row, "email", account.email);
-    setCredentialValue(row, "password", account.password);
-    row.querySelector('[data-field="status"]').textContent = statusText(account.status);
-    row.querySelector('[data-field="copy_count"]').textContent = String(account.copy_count || 0);
-    if (
-      accountDetailsDialog &&
-      detailsAreOpen() &&
-      accountDetailsDialog.dataset.accountId === accountId(account)
-    ) {
-      renderDetails(account);
-    }
-  }
-
   function detailValue(account, field) {
     if (field === "status") {
       return statusText(account.status);
     }
-    if (field === "copy_count") {
-      return String(account.copy_count || 0);
+    if (field === "email_copy_count" || field === "password_copy_count") {
+      return String(account[field] || 0);
     }
     return account[field] || "-";
   }
@@ -233,7 +195,7 @@
     renderDetails(account);
     accountDetailsDialog.hidden = false;
     document.body.classList.add("details-open");
-    accountDetailsDialog.querySelector("[data-details-close]")?.focus();
+    accountDetailsDialog.querySelector("[data-detail-copy]")?.focus();
   }
 
   function closeDetails() {
@@ -244,78 +206,24 @@
     document.body.classList.remove("details-open");
   }
 
-  function upsertAccount(account, prepend) {
-    let row = accountsBody.querySelector('[data-account-id="' + account.id + '"]');
-    if (row) {
-      updateRow(row, account);
-    } else {
-      row = renderRow(account);
-      if (prepend && accountsBody.firstChild) {
-        accountsBody.insertBefore(row, accountsBody.firstChild);
-      } else {
-        accountsBody.appendChild(row);
-      }
-    }
-    updateEmptyState();
-    if (account.status === "pending" || account.status === "running") {
-      enqueuePoll(account.id);
-    } else {
-      stopPoll(account.id);
-    }
-  }
-
-  function currentStatusFilter() {
-    return new URLSearchParams(window.location.search).get("status") || "";
-  }
-
-  function shouldInsert(account) {
-    const filter = currentStatusFilter();
-    return !filter || filter === account.status;
-  }
-
-  function enqueuePoll(accountId) {
-    if (activePolls.has(accountId) || pollQueue.includes(accountId)) {
+  function openManualCopy(text) {
+    if (!manualCopyDialog || !manualCopyText) {
       return;
     }
-    pollQueue.push(accountId);
-    drainPollQueue();
+    manualCopyText.value = text || "";
+    manualCopyDialog.hidden = false;
+    document.body.classList.add("details-open");
+    manualCopyText.focus();
+    manualCopyText.select();
   }
 
-  function drainPollQueue() {
-    while (activePolls.size < maxPolls && pollQueue.length > 0) {
-      const accountId = pollQueue.shift();
-      pollAccount(accountId);
-      const timer = window.setInterval(function () {
-        pollAccount(accountId);
-      }, pollIntervalMs);
-      activePolls.set(accountId, timer);
+  function closeManualCopy() {
+    if (!manualCopyDialog) {
+      return;
     }
-  }
-
-  function stopPoll(accountId) {
-    const timer = activePolls.get(accountId);
-    if (timer) {
-      window.clearInterval(timer);
-      activePolls.delete(accountId);
-      drainPollQueue();
-    }
-  }
-
-  async function pollAccount(accountId) {
-    try {
-      const payload = await requestJson("/api/accounts/" + accountId, {
-        method: "GET",
-        headers: { Accept: "application/json" },
-      });
-      if (shouldInsert(payload.account)) {
-        upsertAccount(payload.account, false);
-      }
-      if (payload.account.status === "success" || payload.account.status === "failed") {
-        stopPoll(accountId);
-      }
-    } catch (error) {
-      stopPoll(accountId);
-      showMessage(error.message, true);
+    manualCopyDialog.hidden = true;
+    if (!detailsAreOpen()) {
+      document.body.classList.remove("details-open");
     }
   }
 
@@ -323,9 +231,9 @@
     if (navigator.clipboard && navigator.clipboard.writeText) {
       try {
         await navigator.clipboard.writeText(text);
-        return;
+        return true;
       } catch (error) {
-        // Some embedded/mobile browsers expose the API but still deny writes.
+        // Some mobile browsers expose the API while denying writes.
       }
     }
     const textarea = document.createElement("textarea");
@@ -341,66 +249,104 @@
     const copied = document.execCommand("copy");
     document.body.removeChild(textarea);
     if (!copied) {
-      throw new Error(msg("accounts.copy_failed", "Copy failed."));
-    }
-  }
-
-  async function copyCredential(text) {
-    try {
-      await copyText(text);
-      return true;
-    } catch (error) {
       openManualCopy(text);
       return false;
     }
+    return true;
   }
 
-  document.querySelector("#single-register-form")?.addEventListener("submit", async function (event) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    setBusy(form, true);
-    showMessage("", false);
-    try {
-      const payload = await requestJson("/api/register", {
-        method: "POST",
-        headers: headers(),
-        body: "{}",
-      });
-      if (shouldInsert(payload.account)) {
-        upsertAccount(payload.account, true);
-      }
-      showMessage(msg("accounts.register_started", "Registration started."), false);
-    } catch (error) {
-      showMessage(error.message, true);
-    } finally {
-      setBusy(form, false);
-    }
-  });
+  async function recordCopy(accountIdValue, kind) {
+    const payload = await requestJson("/api/accounts/" + accountIdValue + "/copy-" + kind, {
+      method: "POST",
+      headers: headers(),
+      body: "{}",
+    });
+    upsertAccount(payload.account, false);
+  }
 
-  document.querySelector("#batch-register-form")?.addEventListener("submit", async function (event) {
+  function enqueuePoll(accountIdValue) {
+    if (activePolls.has(accountIdValue) || pollQueue.includes(accountIdValue)) {
+      return;
+    }
+    pollQueue.push(accountIdValue);
+    drainPollQueue();
+  }
+
+  function drainPollQueue() {
+    while (activePolls.size < maxPolls && pollQueue.length > 0) {
+      const id = pollQueue.shift();
+      pollAccount(id);
+      activePolls.set(id, window.setInterval(function () {
+        pollAccount(id);
+      }, pollIntervalMs));
+    }
+  }
+
+  function stopPoll(accountIdValue) {
+    const timer = activePolls.get(accountIdValue);
+    if (timer) {
+      window.clearInterval(timer);
+      activePolls.delete(accountIdValue);
+      drainPollQueue();
+    }
+  }
+
+  async function pollAccount(accountIdValue) {
+    try {
+      const payload = await requestJson("/api/accounts/" + accountIdValue, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      });
+      upsertAccount(payload.account, false);
+      if (!shouldPoll(payload.account)) {
+        stopPoll(accountIdValue);
+      }
+    } catch (error) {
+      stopPoll(accountIdValue);
+      showMessage(error.message, true);
+    }
+  }
+
+  function setBusy(form, busy) {
+    Array.from(form.elements).forEach(function (element) {
+      element.disabled = busy;
+    });
+  }
+
+  registerForm?.addEventListener("submit", async function (event) {
     event.preventDefault();
+    if (!navigator.onLine) {
+      showMessage(msg("accounts.online_required", "Network is required to register."), true);
+      return;
+    }
     const form = event.currentTarget;
     const data = new FormData(form);
+    const count = Number(data.get("count") || 1);
     setBusy(form, true);
     showMessage("", false);
     try {
       const payload = await requestJson("/api/register-batch", {
         method: "POST",
         headers: headers(),
-        body: JSON.stringify({ count: data.get("count") }),
+        body: JSON.stringify({ count: count }),
       });
       payload.accounts.forEach(function (account) {
-        if (shouldInsert(account)) {
-          upsertAccount(account, true);
-        } else {
-          enqueuePoll(account.id);
-        }
+        upsertAccount(account, true);
       });
+      const failedCount = payload.accounts.filter(function (account) {
+        return account.bucket === "failed" || account.status === "failed";
+      }).length;
+      const messageKey = failedCount > 0 ? "accounts.batch_created_with_failures" : "accounts.batch_started";
+      const fallback =
+        failedCount > 0
+          ? "Created {count} account records. {failed} failed; check Failed."
+          : "Started {count} registration tasks.";
       showMessage(
-        msg("accounts.batch_started", "Batch registration started.", {
+        msg(messageKey, fallback, {
           count: payload.accounts.length,
+          failed: failedCount,
         }),
-        false
+        failedCount > 0
       );
     } catch (error) {
       showMessage(error.message, true);
@@ -409,46 +355,39 @@
     }
   });
 
-  accountsBody.addEventListener("click", async function (event) {
-    const detailsButton = event.target.closest("button[data-details]");
-    if (detailsButton) {
-      openDetails(detailsButton.closest("tr"));
-      return;
-    }
-
-    const button = event.target.closest("[data-copy]");
-    if (!button) {
-      return;
-    }
-    const row = button.closest("tr");
-    const kind = button.dataset.copy;
-    const account = accountStore.get(row.dataset.accountId) || {};
-    const field = row.querySelector('[data-field="' + (kind === "email" ? "email" : "password") + '"] [data-value]');
-    const text = account[kind] || (field ? field.dataset.fullValue || field.textContent : "");
-    button.disabled = true;
-    try {
-      const copied = await copyCredential(text);
-      if (copied && kind === "email") {
-        const payload = await requestJson(
-          "/api/accounts/" + row.dataset.accountId + "/copy-account",
-          { method: "POST", headers: headers(), body: "{}" }
-        );
-        updateRow(row, payload.account);
-      }
-      showMessage(
-        copied
-          ? msg("accounts.copy_success", "Copied.")
-          : msg("accounts.manual_copy_opened", "Copy permission was denied. Select and copy the text manually."),
-        !copied
-      );
-    } catch (error) {
-      showMessage(error.message || msg("accounts.copy_failed", "Copy failed."), true);
-    } finally {
-      button.disabled = false;
+  accountsBody.addEventListener("click", function (event) {
+    const row = event.target.closest("[data-details]");
+    if (row) {
+      openDetails(row);
     }
   });
 
-  accountDetailsDialog?.addEventListener("click", function (event) {
+  accountDetailsDialog?.addEventListener("click", async function (event) {
+    const copyButton = event.target.closest("[data-detail-copy]");
+    if (copyButton) {
+      const kind = copyButton.dataset.detailCopy;
+      const id = accountDetailsDialog.dataset.accountId;
+      const account = accountStore.get(id) || {};
+      const text = account[kind] || "";
+      copyButton.disabled = true;
+      try {
+        const copied = await copyText(text);
+        if (copied) {
+          await recordCopy(id, kind);
+        }
+        showMessage(
+          copied
+            ? msg("accounts.copy_success", "Copied.")
+            : msg("accounts.manual_copy_opened", "Copy permission was denied. Select and copy the text manually."),
+          !copied
+        );
+      } catch (error) {
+        showMessage(error.message || msg("accounts.copy_failed", "Copy failed."), true);
+      } finally {
+        copyButton.disabled = false;
+      }
+      return;
+    }
     if (event.target.closest("[data-details-close]") || event.target === accountDetailsDialog) {
       closeDetails();
     }
@@ -461,19 +400,88 @@
   });
 
   document.addEventListener("keydown", function (event) {
-    if (event.key === "Escape" && detailsAreOpen()) {
-      closeDetails();
-    }
     if (event.key === "Escape" && manualCopyIsOpen()) {
       closeManualCopy();
+    } else if (event.key === "Escape" && detailsAreOpen()) {
+      closeDetails();
     }
   });
 
-  (config.accounts || []).forEach(function (account) {
-    rememberAccount(account);
-    if (account.status === "pending" || account.status === "running") {
-      enqueuePoll(account.id);
+  function openDb() {
+    if (!("indexedDB" in window)) {
+      return Promise.resolve(null);
     }
+    return new Promise(function (resolve) {
+      const request = indexedDB.open(dbName, dbVersion);
+      request.onupgradeneeded = function () {
+        const db = request.result;
+        if (!db.objectStoreNames.contains("accounts")) {
+          const store = db.createObjectStore("accounts", { keyPath: "id" });
+          store.createIndex("bucket", "bucket", { unique: false });
+        }
+      };
+      request.onsuccess = function () {
+        resolve(request.result);
+      };
+      request.onerror = function () {
+        resolve(null);
+      };
+    });
+  }
+
+  async function cacheAccount(account) {
+    const db = await openDb();
+    if (!db) {
+      return;
+    }
+    const tx = db.transaction("accounts", "readwrite");
+    tx.objectStore("accounts").put(Object.assign({ cached_at: Date.now() }, account));
+  }
+
+  async function loadCachedAccounts() {
+    const db = await openDb();
+    if (!db) {
+      return [];
+    }
+    return new Promise(function (resolve) {
+      const tx = db.transaction("accounts", "readonly");
+      const request = tx.objectStore("accounts").getAll();
+      request.onsuccess = function () {
+        resolve((request.result || []).filter(shouldShow));
+      };
+      request.onerror = function () {
+        resolve([]);
+      };
+    });
+  }
+
+  async function hydrateFromCacheIfUseful() {
+    if (accountsBody.children.length > 0 && navigator.onLine) {
+      return;
+    }
+    const cached = await loadCachedAccounts();
+    cached
+      .sort(function (a, b) {
+        return String(b.created_at || "").localeCompare(String(a.created_at || ""));
+      })
+      .forEach(function (account) {
+        upsertAccount(account, false);
+      });
+    if (cached.length > 0 && !navigator.onLine) {
+      showMessage(msg("accounts.offline_cache", "Showing cached accounts."), false);
+    }
+  }
+
+  function registerServiceWorker() {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/static/service-worker.js").catch(function () {});
+    }
+  }
+
+  (config.accounts || []).forEach(function (account) {
+    upsertAccount(account, false);
   });
+  hydrateFromCacheIfUseful();
+  registerServiceWorker();
   updateEmptyState();
 })();

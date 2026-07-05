@@ -1,0 +1,18 @@
+{
+  "name": "Matuya Register",
+  "short_name": "Matuya",
+  "description": "Mobile account registration console.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f5f7f6",
+  "theme_color": "#176b5b",
+  "icons": [
+    {
+      "src": "/static/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

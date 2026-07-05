@@ -2,48 +2,37 @@
 
 {% block content %}
   <section class="toolbar" aria-label="{{ t('accounts.actions') }}">
-    <form id="single-register-form" class="inline-form">
-      <button type="submit" class="primary-button">{{ t("accounts.register_single") }}</button>
-    </form>
-    <form id="batch-register-form" class="inline-form">
+    <form id="register-form" class="register-form">
       <label for="batch-count">{{ t("accounts.batch_count") }}</label>
-      <input id="batch-count" name="count" type="number" min="1" max="{{ config.APP_CONFIG.batch_max_count }}" value="3">
-      <button type="submit">{{ t("accounts.register_batch") }}</button>
+      <select id="batch-count" name="count">
+        {% set register_max = 5 if config.APP_CONFIG.batch_max_count > 5 else config.APP_CONFIG.batch_max_count %}
+        {% for item in range(1, register_max + 1) %}
+          <option value="{{ item }}" {% if item == 1 %}selected{% endif %}>{{ item }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="primary-button">{{ t("accounts.register") }}</button>
     </form>
     <p id="flash-message" class="flash-message" role="status" aria-live="polite"></p>
   </section>
 
   <nav class="filters" aria-label="{{ t('accounts.filters') }}">
     {% set filters = [
-      ("", "status.all"),
-      ("pending", "status.pending"),
-      ("running", "status.running"),
-      ("success", "status.success"),
+      ("unused", "status.unused"),
+      ("used", "status.used"),
       ("failed", "status.failed")
     ] %}
     {% for value, label in filters %}
-      <a class="{% if status_filter == value %}active{% endif %}"
-         href="{{ url_for('accounts.index', status=value) if value else url_for('accounts.index') }}">
+      <a class="{% if bucket_filter == value %}active{% endif %}"
+         href="{{ url_for('accounts.index', bucket=value) }}">
         {{ t(label) }}
       </a>
     {% endfor %}
   </nav>
 
-  <section class="table-wrap" aria-label="{{ t('accounts.history') }}">
-    <table>
-      <thead>
-        <tr>
-          <th>{{ t("accounts.email") }}</th>
-          <th>{{ t("accounts.password") }}</th>
-          <th>{{ t("accounts.copy_count") }}</th>
-          <th>{{ t("accounts.status") }}</th>
-          <th>{{ t("accounts.details") }}</th>
-        </tr>
-      </thead>
-      <tbody id="accounts-body">
-        {% include "partials/account_rows.html" %}
-      </tbody>
-    </table>
+  <section class="account-list-wrap" aria-label="{{ t('accounts.history') }}">
+    <div id="accounts-body" class="account-list">
+      {% include "partials/account_rows.html" %}
+    </div>
     <p id="empty-state" class="empty-state" {% if accounts.items %}hidden{% endif %}>
       {{ t("accounts.empty") }}
     </p>
@@ -57,11 +46,17 @@
       <dl class="details-list">
         <div>
           <dt>{{ t("accounts.email") }}</dt>
-          <dd data-detail-field="email"></dd>
+          <dd class="detail-copy-row">
+            <span data-detail-field="email"></span>
+            <button type="button" data-detail-copy="email">{{ t("accounts.copy") }}</button>
+          </dd>
         </div>
         <div>
           <dt>{{ t("accounts.password") }}</dt>
-          <dd data-detail-field="password"></dd>
+          <dd class="detail-copy-row">
+            <span data-detail-field="password"></span>
+            <button type="button" data-detail-copy="password">{{ t("accounts.copy") }}</button>
+          </dd>
         </div>
         <div>
           <dt>{{ t("accounts.status") }}</dt>
@@ -72,12 +67,20 @@
           <dd data-detail-field="error_message"></dd>
         </div>
         <div>
-          <dt>{{ t("accounts.copy_count") }}</dt>
-          <dd data-detail-field="copy_count"></dd>
+          <dt>{{ t("accounts.email_copy_count") }}</dt>
+          <dd data-detail-field="email_copy_count"></dd>
         </div>
         <div>
-          <dt>{{ t("accounts.last_copied_at") }}</dt>
-          <dd data-detail-field="last_copied_at"></dd>
+          <dt>{{ t("accounts.password_copy_count") }}</dt>
+          <dd data-detail-field="password_copy_count"></dd>
+        </div>
+        <div>
+          <dt>{{ t("accounts.last_email_copied_at") }}</dt>
+          <dd data-detail-field="last_email_copied_at"></dd>
+        </div>
+        <div>
+          <dt>{{ t("accounts.last_password_copied_at") }}</dt>
+          <dd data-detail-field="last_password_copied_at"></dd>
         </div>
         <div>
           <dt>{{ t("accounts.created_at") }}</dt>
@@ -125,15 +128,15 @@
     {% set prev_page = accounts.page - 1 %}
     {% set next_page = accounts.page + 1 %}
     {% if accounts.page > 1 %}
-      <a href="{{ url_for('accounts.index', status=status_filter, page=prev_page, page_size=accounts.page_size) }}">
+      <a href="{{ url_for('accounts.index', bucket=bucket_filter, page=prev_page, page_size=accounts.page_size) }}">
         {{ t("pagination.previous") }}
       </a>
     {% else %}
       <span>{{ t("pagination.previous") }}</span>
     {% endif %}
-    <strong>{{ t("pagination.total", total=accounts.total) }}</strong>
+    <strong>{{ t("pagination.page_total", page=accounts.page, total=accounts.total) }}</strong>
     {% if accounts.page * accounts.page_size < accounts.total %}
-      <a href="{{ url_for('accounts.index', status=status_filter, page=next_page, page_size=accounts.page_size) }}">
+      <a href="{{ url_for('accounts.index', bucket=bucket_filter, page=next_page, page_size=accounts.page_size) }}">
         {{ t("pagination.next") }}
       </a>
     {% else %}
