@@ -5,8 +5,9 @@ from flask import current_app, has_app_context
 
 from app import db as db_module
 from app.config import ConfigError
-from app.mail.exceptions import MailLoginError, MailParseError, MailTimeoutError
+from app.mail.exceptions import MailError, MailLoginError, MailParseError, MailTimeoutError
 from app.mail.imap_client import MailClient
+from app.mail.providers import create_mail_provider
 from app.matuya.client import MatuyaClient
 from app.matuya.exceptions import (
     MatuyaFormParseError,
@@ -32,6 +33,7 @@ class BatchCountError(ValueError):
 
 ERROR_CONFIG_MISSING = "error.registration.config_missing"
 ERROR_MAIL_LOGIN_FAILED = "error.registration.mail_login_failed"
+ERROR_MAIL_SERVICE_FAILED = "error.registration.mail_service_failed"
 ERROR_MAIL_TIMEOUT = "error.registration.mail_timeout"
 ERROR_MAIL_PARSE_FAILED = "error.registration.mail_parse_failed"
 ERROR_MATUYA_REQUEST_FAILED = "error.registration.matuya_request_failed"
@@ -49,6 +51,7 @@ class AccountService:
         config=None,
         runner=None,
         mail_client=None,
+        mail_provider=None,
         matuya_client=None,
         generator=None,
         app=None,
@@ -57,8 +60,9 @@ class AccountService:
         self.config = config or current_app.config["APP_CONFIG"]
         self.runner = runner
         self.mail_client = mail_client
+        self.mail_provider = mail_provider
         self.matuya_client = matuya_client
-        self.generator = generator or AccountGenerator(self.config.mail_suffix)
+        self.generator = generator
         self.app = app or (current_app._get_current_object() if has_app_context() else None)
 
     @classmethod
@@ -112,9 +116,7 @@ class AccountService:
             register_url = self._stage(
                 account, "wait_register_link", self._mail_client.wait_register_link, account.email
             )
-            profile = self._stage(
-                account, "generate_profile", self.generator.generate_profile, account.password
-            )
+            profile = self._stage(account, "generate_profile", self._generator.generate_profile, account.password)
             self._stage(
                 account,
                 "complete_registration",
@@ -132,16 +134,54 @@ class AccountService:
             return account
 
     def _create_unique_account(self, created_by):
+        if self.mail_provider is not None:
+            return self._create_unique_account_with_provider(created_by)
+        if self.mail_client is None:
+            self.mail_provider = self._build_mail_provider()
+            return self._create_unique_account_with_provider(created_by)
+        return self._create_unique_account_with_generator(created_by)
+
+    def _create_unique_account_with_generator(self, created_by):
         repo = AccountRepository(self.db)
         for _ in range(10):
-            email = self.generator.generate_email()
-            password = self.generator.generate_password()
+            email = self._generator.generate_email()
+            password = self._generator.generate_password()
             try:
                 account = repo.create_pending(email, password, created_by)
                 self._log(account, "create_account", "pending", time.monotonic())
                 return account
             except DuplicateEmailError:
                 logger.info("email conflict while creating pending account", extra={"email": email})
+        raise EmailGenerateExhaustedError("email generation exhausted")
+
+    def _create_unique_account_with_provider(self, created_by):
+        repo = AccountRepository(self.db)
+        last_error = None
+        for provider in self.mail_provider.providers:
+            for _ in range(10):
+                email = provider.generate_email()
+                password = self._generator.generate_password()
+                prepared = False
+                try:
+                    provider.prepare_recipient(email)
+                    prepared = True
+                    account = repo.create_pending(email, password, created_by)
+                    self._log(account, "create_account", "pending", time.monotonic())
+                    return account
+                except DuplicateEmailError:
+                    logger.info("email conflict while creating pending account", extra={"email": email})
+                    if prepared:
+                        try:
+                            provider.cleanup_recipient(email)
+                        except MailError:
+                            logger.info("mail provider cleanup failed after email conflict", exc_info=True)
+                    continue
+                except MailError as exc:
+                    last_error = exc
+                    logger.info("mail provider failed while preparing recipient", exc_info=True)
+                    break
+        if last_error is not None:
+            raise last_error
         raise EmailGenerateExhaustedError("email generation exhausted")
 
     def _submit_registration(self, account_id):
@@ -170,8 +210,23 @@ class AccountService:
     @property
     def _mail_client(self):
         if self.mail_client is None:
-            self.mail_client = MailClient(self.config)
+            self.mail_client = self._mail_provider
         return self.mail_client
+
+    @property
+    def _mail_provider(self):
+        if self.mail_provider is None:
+            self.mail_provider = self._build_mail_provider()
+        return self.mail_provider
+
+    @property
+    def _generator(self):
+        if self.generator is None:
+            self.generator = AccountGenerator(self.config.mail_suffix)
+        return self.generator
+
+    def _build_mail_provider(self):
+        return create_mail_provider(self.config, generator=self._generator)
 
     @property
     def _matuya_client(self):
@@ -202,6 +257,8 @@ def normalize_registration_error(exc):
         return ERROR_MAIL_TIMEOUT
     if isinstance(exc, MailParseError):
         return ERROR_MAIL_PARSE_FAILED
+    if isinstance(exc, MailError):
+        return ERROR_MAIL_SERVICE_FAILED
     if isinstance(exc, MatuyaRequestError):
         return ERROR_MATUYA_REQUEST_FAILED
     if isinstance(exc, MatuyaFormParseError):

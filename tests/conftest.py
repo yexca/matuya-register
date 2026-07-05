@@ -11,6 +11,7 @@ def app(tmp_path, monkeypatch):
         "ADMIN_PASSWORD": "password",
         "MATUYA_REGISTER_URL": "https://example.invalid/register",
         "MATUYA_FORM_URL": "https://example.invalid/form",
+        "MAIL_IMAP_HOST": "imap.example.invalid",
         "MAIL_USERNAME": "mail@example.invalid",
         "MAIL_PASSWORD": "mail-password",
         "MAIL_SUFFIX": "@example.invalid",

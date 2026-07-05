@@ -3,7 +3,7 @@ import pytest
 from app.accounts.repository import AccountRepository
 from app.accounts.service import AccountService, EmailGenerateExhaustedError
 from app.accounts.types import RegistrationProfile
-from app.mail.exceptions import MailTimeoutError
+from app.mail.exceptions import MailSearchError, MailTimeoutError
 from app.matuya.exceptions import MatuyaFormParseError
 
 
@@ -52,6 +52,43 @@ class SequenceGenerator:
             phone_e="1234",
             phone_n="5678",
         )
+
+
+class FakeProvider:
+    def __init__(self, name, email, prepare_error=None):
+        self.name = name
+        self.email = email
+        self.prepare_error = prepare_error
+        self.prepared = []
+        self.cleaned = []
+
+    def generate_email(self):
+        return self.email
+
+    def prepare_recipient(self, recipient):
+        self.prepared.append(recipient)
+        if self.prepare_error:
+            raise self.prepare_error
+
+    def wait_register_link(self, recipient):
+        return "https://example.invalid/complete"
+
+    def cleanup_recipient(self, recipient):
+        self.cleaned.append(recipient)
+
+    def can_handle(self, recipient):
+        return recipient == self.email
+
+
+class FakeFallbackProvider:
+    def __init__(self, providers):
+        self.providers = providers
+
+    def wait_register_link(self, recipient):
+        for provider in self.providers:
+            if provider.can_handle(recipient):
+                return provider.wait_register_link(recipient)
+        raise AssertionError(f"unhandled recipient {recipient}")
 
 
 def make_service(db_conn, config, **kwargs):
@@ -146,3 +183,26 @@ def test_email_conflict_exhaustion_raises(app, db_conn):
 
     with pytest.raises(EmailGenerateExhaustedError):
         service.enqueue_single_register(created_by=None)
+
+
+def test_mail_provider_fallback_creates_account_with_next_provider(app, db_conn):
+    bad = FakeProvider(
+        "mail_tm",
+        "bad@example.invalid",
+        prepare_error=MailSearchError("mail service failed"),
+    )
+    good = FakeProvider("gmail_imap", "good@example.invalid")
+    service = AccountService(
+        db_conn,
+        config=app.config["APP_CONFIG"],
+        runner=None,
+        mail_provider=FakeFallbackProvider([bad, good]),
+        matuya_client=FakeMatuyaClient(),
+        generator=SequenceGenerator([]),
+    )
+
+    account = service.enqueue_single_register(created_by=None)
+
+    assert account.email == "good@example.invalid"
+    assert bad.prepared == ["bad@example.invalid"]
+    assert good.prepared == ["good@example.invalid"]

@@ -1,6 +1,7 @@
 import os
 from datetime import timedelta
 from dataclasses import dataclass
+from urllib.parse import urlparse
 
 
 class ConfigError(ValueError):
@@ -15,11 +16,15 @@ class AppConfig:
     sqlite_path: str
     matuya_register_url: str
     matuya_form_url: str
+    mail_providers: tuple[str, ...]
     mail_imap_host: str
     mail_imap_port: int
     mail_username: str
     mail_password: str
     mail_suffix: str
+    mail_tm_api_base: str
+    mail_tm_suffix: str
+    mail_tm_cleanup_account: bool
     register_max_wait_seconds: int
     register_poll_interval_seconds: int
     http_timeout_seconds: int
@@ -50,20 +55,19 @@ def load_config() -> AppConfig:
         "ADMIN_PASSWORD",
         "MATUYA_REGISTER_URL",
         "MATUYA_FORM_URL",
-        "MAIL_USERNAME",
-        "MAIL_PASSWORD",
-        "MAIL_SUFFIX",
     )
     missing = [name for name in required if not os.environ.get(name, "").strip()]
     if missing:
         raise ConfigError(f"Missing required environment variables: {', '.join(missing)}")
 
+    mail_providers = _parse_mail_providers()
     supported = _parse_locales(os.environ.get("SUPPORTED_LOCALES", "en,zh-CN"))
     default_locale = os.environ.get("DEFAULT_LOCALE", "en").strip()
     page_size_max = _env_int("PAGE_SIZE_MAX", "50")
     page_size_default = _env_int("PAGE_SIZE_DEFAULT", "20")
     batch_max_count = _env_int("BATCH_MAX_COUNT", "5")
     batch_max_workers = _env_int("BATCH_MAX_WORKERS", "2")
+    mail_tm_suffix = os.environ.get("MAIL_TM_SUFFIX", "").strip()
 
     config = AppConfig(
         app_secret_key=_env_text("APP_SECRET_KEY"),
@@ -72,11 +76,15 @@ def load_config() -> AppConfig:
         sqlite_path=os.environ.get("SQLITE_PATH", "/data/app.db").strip() or "/data/app.db",
         matuya_register_url=_env_text("MATUYA_REGISTER_URL"),
         matuya_form_url=_env_text("MATUYA_FORM_URL"),
-        mail_imap_host=os.environ.get("MAIL_IMAP_HOST", "imap.gmail.com").strip() or "imap.gmail.com",
+        mail_providers=mail_providers,
+        mail_imap_host=os.environ.get("MAIL_IMAP_HOST", "").strip(),
         mail_imap_port=_env_int("MAIL_IMAP_PORT", "993"),
-        mail_username=_env_text("MAIL_USERNAME"),
-        mail_password=_env_text("MAIL_PASSWORD"),
-        mail_suffix=_env_text("MAIL_SUFFIX"),
+        mail_username=os.environ.get("MAIL_USERNAME", "").strip(),
+        mail_password=os.environ.get("MAIL_PASSWORD", "").strip(),
+        mail_suffix=os.environ.get("MAIL_SUFFIX", "").strip(),
+        mail_tm_api_base=os.environ.get("MAIL_TM_API_BASE", "").strip().rstrip("/"),
+        mail_tm_suffix=mail_tm_suffix,
+        mail_tm_cleanup_account=_env_bool("MAIL_TM_CLEANUP_ACCOUNT", False),
         register_max_wait_seconds=_env_int("REGISTER_MAX_WAIT_SECONDS", "90"),
         register_poll_interval_seconds=_env_int("REGISTER_POLL_INTERVAL_SECONDS", "5"),
         http_timeout_seconds=_env_int("HTTP_TIMEOUT_SECONDS", "20"),
@@ -125,6 +133,24 @@ def _parse_locales(raw: str) -> tuple[str, ...]:
     return locales
 
 
+def _parse_mail_providers() -> tuple[str, ...]:
+    raw = ",".join(
+        item for item in (
+            os.environ.get("MAIL_PROVIDER", "gmail_imap"),
+            os.environ.get("MAIL_PROVIDER_FALLBACK", ""),
+        )
+        if item
+    )
+    providers = []
+    for item in raw.split(","):
+        name = item.strip().lower().replace("-", "_")
+        if name and name not in providers:
+            providers.append(name)
+    if not providers:
+        raise ConfigError("MAIL_PROVIDER must not be empty")
+    return tuple(providers)
+
+
 def _validate(config: AppConfig) -> None:
     positive = {
         "MAIL_IMAP_PORT": config.mail_imap_port,
@@ -138,7 +164,34 @@ def _validate(config: AppConfig) -> None:
             raise ConfigError(f"{name} must be greater than 0")
 
     if not config.mail_suffix.startswith("@"):
-        raise ConfigError("MAIL_SUFFIX must start with @")
+        if "gmail_imap" in config.mail_providers or config.mail_suffix:
+            raise ConfigError("MAIL_SUFFIX must start with @")
+    if "gmail_imap" in config.mail_providers:
+        missing = [
+            name
+            for name, value in {
+                "MAIL_USERNAME": config.mail_username,
+                "MAIL_PASSWORD": config.mail_password,
+                "MAIL_SUFFIX": config.mail_suffix,
+                "MAIL_IMAP_HOST": config.mail_imap_host,
+            }.items()
+            if not value
+        ]
+        if missing:
+            raise ConfigError(f"Missing required environment variables: {', '.join(missing)}")
+    if "mail_tm" in config.mail_providers:
+        if not config.mail_tm_api_base:
+            raise ConfigError("MAIL_TM_API_BASE is required when MAIL_PROVIDER includes mail_tm")
+        parsed = urlparse(config.mail_tm_api_base)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ConfigError("MAIL_TM_API_BASE must be an absolute HTTP URL")
+        if not config.mail_tm_suffix:
+            raise ConfigError("MAIL_TM_SUFFIX is required when MAIL_PROVIDER includes mail_tm")
+        if not config.mail_tm_suffix.startswith("@"):
+            raise ConfigError("MAIL_TM_SUFFIX must start with @")
+    unknown = set(config.mail_providers) - {"gmail_imap", "mail_tm"}
+    if unknown:
+        raise ConfigError(f"Unsupported MAIL_PROVIDER value: {', '.join(sorted(unknown))}")
     if not 1 <= config.batch_max_count <= 50:
         raise ConfigError("BATCH_MAX_COUNT must be between 1 and 50")
     if not 1 <= config.batch_max_workers <= 10:

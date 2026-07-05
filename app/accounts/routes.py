@@ -1,6 +1,7 @@
 from flask import Blueprint, current_app, render_template, request, session
 
 from app.i18n import json_error, t
+from app.mail.exceptions import MailError
 
 from app.auth.decorators import login_required
 from .service import (
@@ -60,9 +61,9 @@ def register_single():
         account = AccountService.from_current_app().enqueue_single_register(
             session.get("user_id")
         )
-    except EmailGenerateExhaustedError as exc:
+    except (EmailGenerateExhaustedError, MailError) as exc:
         error = normalize_registration_error(exc)
-        return json_error(error, 409)
+        return json_error(error, 409 if isinstance(exc, EmailGenerateExhaustedError) else 502)
     return {"account": serialize_account(account)}, 202
 
 
@@ -80,9 +81,9 @@ def register_batch():
             400,
             max=current_app.config["APP_CONFIG"].batch_max_count,
         )
-    except EmailGenerateExhaustedError as exc:
+    except (EmailGenerateExhaustedError, MailError) as exc:
         error = normalize_registration_error(exc)
-        return json_error(error, 409)
+        return json_error(error, 409 if isinstance(exc, EmailGenerateExhaustedError) else 502)
     return {"accounts": [serialize_account(account) for account in accounts]}, 202
 
 
