@@ -12,11 +12,14 @@ Use these documents as the maintained reference:
 - [API Reference](api-reference.md): admin JSON endpoints.
 - [Development Guide](development-guide.md): code conventions and extension points.
 - [Operations](operations.md): deployment, backups, and troubleshooting.
+- [Acceptance](acceptance.md): verification status and handover notes.
 
 ## Safety Boundary
 
 This project must only be used in environments where you have explicit
-authorization. Do not use real service URLs, credentials, personal accounts, or
-production data in examples, tests, issues, commits, or documentation.
+authorization. Do not use real target-site URLs, credentials, personal accounts,
+or production data in examples, tests, issues, commits, or documentation.
 
-All examples in this documentation are intentionally fake.
+Account, password, target-site, and mail-domain examples are intentionally fake.
+Public provider identifiers and public provider hosts, such as `gmail_imap` and
+`imap.gmail.com`, may appear where they describe supported configuration.

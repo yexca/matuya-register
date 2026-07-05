@@ -20,9 +20,9 @@ cp .env.example .env
 Use obviously fake placeholders while developing documentation or tests:
 
 ```env
-APP_SECRET_KEY=not-a-real-secret-change-me
-ADMIN_USERNAME=fake-admin
-ADMIN_PASSWORD=fake-password
+APP_SECRET_KEY=example-only-secret-do-not-use
+ADMIN_USERNAME=example-admin-user
+ADMIN_PASSWORD=example-admin-password-not-real
 MATUYA_REGISTER_URL=https://matuya-register.example.invalid/register
 MATUYA_FORM_URL=https://matuya-register.example.invalid/form
 

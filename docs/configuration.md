@@ -7,9 +7,9 @@ fails with `ConfigError` when required values are missing or malformed.
 
 | Variable | Required | Example | Description |
 | --- | --- | --- | --- |
-| `APP_SECRET_KEY` | yes | `not-a-real-secret-change-me` | Flask session secret. |
-| `ADMIN_USERNAME` | yes | `fake-admin` | Initial administrator username. |
-| `ADMIN_PASSWORD` | yes | `fake-password` | Initial administrator password. |
+| `APP_SECRET_KEY` | yes | `example-only-secret-do-not-use` | Flask session secret. |
+| `ADMIN_USERNAME` | yes | `example-admin-user` | Initial administrator username. |
+| `ADMIN_PASSWORD` | yes | `example-admin-password-not-real` | Initial administrator password. |
 | `SQLITE_PATH` | no | `./data/app.db` | SQLite database path. |
 | `MATUYA_REGISTER_URL` | yes | `https://matuya-register.example.invalid/register` | Authorized registration page. |
 | `MATUYA_FORM_URL` | yes | `https://matuya-register.example.invalid/form` | Authorized registration form endpoint. |
@@ -45,9 +45,9 @@ Required when `MAIL_PROVIDER` or `MAIL_PROVIDER_FALLBACK` includes
 
 | Variable | Example | Description |
 | --- | --- | --- |
-| `MAIL_IMAP_HOST` | `imap.gmail.com` | IMAP host. |
+| `MAIL_IMAP_HOST` | `imap.gmail.com` | Gmail IMAP host. |
 | `MAIL_IMAP_PORT` | `993` | IMAP SSL port. |
-| `MAIL_USERNAME` | `fake-mailbox@gmail.com` | IMAP login username. |
+| `MAIL_USERNAME` | `fake-mailbox@gmail.com` | Fake Gmail-format login username. |
 | `MAIL_PASSWORD` | `fake-mail-password` | IMAP login password or app password. |
 | `MAIL_SUFFIX` | `@gmail.com` | Suffix for generated target addresses. |
 

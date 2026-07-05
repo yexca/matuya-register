@@ -65,12 +65,13 @@ Common causes:
 - Missing required environment variables.
 - `MAIL_TM_SUFFIX` does not start with `@`.
 - `MAIL_TM_API_BASE` is not an absolute HTTP URL.
-- Gmail provider selected without complete IMAP settings.
+- IMAP provider selected without complete IMAP settings.
 
-### Registration Stays Running
+### Registration Stays Pending Or Running
 
-The browser polls running tasks. If the app restarts while tasks are active,
-startup marks leftover `running` rows as:
+The browser polls active tasks for a bounded period and stops polling while the
+page is hidden. If the app restarts while tasks are active, startup marks
+leftover `pending` and `running` rows as:
 
 ```text
 error.registration.interrupted

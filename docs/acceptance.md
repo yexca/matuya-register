@@ -1,16 +1,17 @@
 # Acceptance And Handover
 
-Date: 2026-06-09
+Date: 2026-07-05
 
 ## Completed Automated Checks
 
-- `python3 -m pytest -q`: 29 passed.
+- `python -m pytest -q`: 45 passed.
 - `docker compose build`: succeeded.
 - `docker compose up -d` with `.env.example` copied to a temporary `.env`: succeeded.
 - `GET http://localhost:8926/login` in the Compose container: returned `200 OK`.
 - Container logs showed gunicorn listening on `0.0.0.0:8926`.
 
-The local Python test run emits a `urllib3` LibreSSL warning on this macOS Python 3.9 installation. It does not fail the test suite.
+The local Python test run emits a `urllib3` LibreSSL warning on this macOS Python
+3.9 installation. It does not fail the test suite.
 
 ## Functional Coverage
 
@@ -24,12 +25,13 @@ The local Python test run emits a `urllib3` LibreSSL warning on this macOS Pytho
 
 ## Manual Checks Requiring Authorized Credentials
 
-These items were not executed because no authorized Matuya/Gmail credentials were provided:
+These items were not executed because no authorized external-service credentials
+were provided:
 
-- Real Gmail app-password login.
+- Real IMAP app-password login.
 - Real registration mail delivery and polling.
-- Real Matuya registration submission.
-- Gmail password error against the real mail service.
+- Real target registration submission.
+- Real mail password error against the authorized mail service.
 - Real mail timeout with production-like wait settings.
 - Real target-site form-change behavior.
 
@@ -46,7 +48,7 @@ HTTP_TIMEOUT_SECONDS=20
 ## Handover Notes
 
 - Registration tasks run in a process-local thread pool. Container restarts interrupt in-flight tasks.
-- Startup marks leftover `running` accounts as `error.registration.interrupted`.
+- Startup marks leftover `pending` and `running` accounts as `error.registration.interrupted`.
 - Account passwords are stored in plaintext to support the admin display/copy workflow. Protect `/data/app.db`, backups, and host access.
 - `.env` is ignored by Git and Docker build context. Keep real secrets out of commits.
 - SQLite defaults to `/data/app.db`; Docker Compose persists `/data` in the `matuya_data` volume.

@@ -14,7 +14,7 @@ Response:
   "account": {
     "id": 101,
     "email": "fake-user@mail-domain.example.invalid",
-    "password": "Aa123456789012",
+    "password": "fake-password-001",
     "status": "pending",
     "raw_status": "pending",
     "bucket": "unused",
@@ -47,7 +47,7 @@ Response:
     {
       "id": 201,
       "email": "fake-one@mail-domain.example.invalid",
-      "password": "Aa123456789012",
+      "password": "fake-password-001",
       "status": "pending"
     }
   ]
@@ -75,7 +75,7 @@ Response:
     {
       "id": 301,
       "email": "fake-history@mail-domain.example.invalid",
-      "password": "Aa123456789012",
+      "password": "fake-password-001",
       "status": "unused",
       "raw_status": "success",
       "bucket": "unused",
@@ -101,7 +101,7 @@ Returns one account.
   "account": {
     "id": 301,
     "email": "fake-history@mail-domain.example.invalid",
-    "password": "Aa123456789012",
+    "password": "fake-password-001",
     "status": "unused",
     "raw_status": "success",
     "bucket": "unused",
