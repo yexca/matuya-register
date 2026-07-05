@@ -1,4 +1,4 @@
-const CACHE_NAME = "matuya-register-v3";
+const CACHE_NAME = "matuya-register-v5";
 const APP_SHELL = [
   "/",
   "/static/app.css",

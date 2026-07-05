@@ -1,5 +1,6 @@
 {
   "accounts.actions": "Account actions",
+  "accounts.advanced": "Advanced",
   "accounts.batch_count": "Count",
   "accounts.batch_created_with_failures": "Created {count} account records. {failed} failed; check Failed.",
   "accounts.batch_started": "Started {count} registration tasks.",
@@ -9,6 +10,8 @@
   "accounts.copy_failed": "Copy failed.",
   "accounts.copy_password": "Copy password",
   "accounts.copy_success": "Copied.",
+  "accounts.copied_short": "Copied",
+  "accounts.copy_manual_short": "Manual",
   "accounts.created_at": "Created",
   "accounts.completed_at": "Completed",
   "accounts.close": "Close",
@@ -30,6 +33,7 @@
   "accounts.online_required": "Network is required to register.",
   "accounts.password": "Password",
   "accounts.password_copy_count": "Password copies",
+  "accounts.poll_stopped": "Stopped polling a stale task. Refresh later.",
   "accounts.register": "Register",
   "accounts.register_batch": "Batch register",
   "accounts.register_single": "Register one",

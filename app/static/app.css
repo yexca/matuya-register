@@ -361,43 +361,128 @@ a:focus-visible {
   overflow-y: auto;
 }
 
-.details-list div {
+.detail-copy-row,
+.detail-advanced summary {
   display: grid;
-  grid-template-columns: 116px minmax(0, 1fr);
+  grid-template-columns: 76px minmax(0, 1fr) auto;
+  align-items: center;
   gap: 10px;
+  width: 100%;
+  min-height: 58px;
   padding: 11px 14px;
   border-bottom: 1px solid var(--line);
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+  border-radius: 0;
+  background: var(--panel);
+  text-align: left;
 }
 
-.details-list div:last-child {
-  border-bottom: 0;
+.detail-copy-row {
+  cursor: pointer;
 }
 
-.details-list dt {
+.detail-copy-row:active {
+  background: #edf7f4;
+}
+
+.detail-copy-row.is-copying {
+  opacity: 0.75;
+}
+
+.detail-copy-row.is-copied {
+  background: #eaf7ef;
+}
+
+.detail-label {
   color: var(--muted);
   font-weight: 750;
 }
 
-.details-list dd {
+.detail-value {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail-copy-state {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
+  min-height: 30px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #eef1f3;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.detail-copy-row.is-copied .detail-copy-state {
+  background: var(--primary);
+  color: #fff;
+}
+
+.detail-advanced {
+  border-bottom: 1px solid var(--line);
+}
+
+.detail-advanced summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.detail-advanced summary::-webkit-details-marker {
+  display: none;
+}
+
+.detail-advanced summary::after {
+  content: ">";
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.detail-advanced[open] summary::after {
+  transform: rotate(90deg);
+}
+
+.advanced-status {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.advanced-list {
+  display: grid;
+  margin: 0;
+  background: #fafbfb;
+}
+
+.advanced-list div {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--line);
+}
+
+.advanced-list dt {
+  color: var(--muted);
+  font-weight: 750;
+}
+
+.advanced-list dd {
   min-width: 0;
   margin: 0;
   overflow-wrap: anywhere;
-}
-
-.detail-copy-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-}
-
-.detail-copy-row span {
-  min-width: 0;
-}
-
-.detail-copy-row button {
-  min-height: 32px;
-  padding: 0 10px;
 }
 
 .details-actions {

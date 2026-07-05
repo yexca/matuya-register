@@ -165,13 +165,14 @@ class AccountRepository:
             """
             update matuya_accounts
             set status = ?, error_message = ?, completed_at = ?, updated_at = ?
-            where status = ?
+            where status in (?, ?)
             """,
             (
                 AccountStatus.FAILED.value,
                 "error.registration.interrupted",
                 now,
                 now,
+                AccountStatus.PENDING.value,
                 AccountStatus.RUNNING.value,
             ),
         )

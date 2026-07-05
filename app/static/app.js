@@ -13,7 +13,9 @@
   const accountStore = new Map();
   const pollQueue = [];
   const activePolls = new Map();
+  const pollAttempts = new Map();
   const maxPolls = 20;
+  const maxPollAttempts = 120;
   const pollIntervalMs = 2500;
   const dbName = "matuya-register";
   const dbVersion = 1;
@@ -179,6 +181,10 @@
       return;
     }
     accountDetailsDialog.dataset.accountId = accountId(account);
+    accountDetailsDialog.querySelector(".detail-advanced")?.removeAttribute("open");
+    accountDetailsDialog.querySelectorAll("[data-copy-state]").forEach(function (state) {
+      state.textContent = msg("accounts.copy", "Copy");
+    });
     accountDetailsDialog.querySelectorAll("[data-detail-field]").forEach(function (field) {
       field.textContent = detailValue(account, field.dataset.detailField);
     });
@@ -268,6 +274,9 @@
     if (activePolls.has(accountIdValue) || pollQueue.includes(accountIdValue)) {
       return;
     }
+    if (!pollAttempts.has(accountIdValue)) {
+      pollAttempts.set(accountIdValue, 0);
+    }
     pollQueue.push(accountIdValue);
     drainPollQueue();
   }
@@ -287,11 +296,22 @@
     if (timer) {
       window.clearInterval(timer);
       activePolls.delete(accountIdValue);
+      pollAttempts.delete(accountIdValue);
       drainPollQueue();
     }
   }
 
   async function pollAccount(accountIdValue) {
+    if (document.hidden) {
+      return;
+    }
+    const attempts = pollAttempts.get(accountIdValue) || 0;
+    if (attempts >= maxPollAttempts) {
+      stopPoll(accountIdValue);
+      showMessage(msg("accounts.poll_stopped", "Stopped polling a stale task. Refresh later."), true);
+      return;
+    }
+    pollAttempts.set(accountIdValue, attempts + 1);
     try {
       const payload = await requestJson("/api/accounts/" + accountIdValue, {
         method: "GET",
@@ -306,6 +326,15 @@
       showMessage(error.message, true);
     }
   }
+
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) {
+      return;
+    }
+    activePolls.forEach(function (_timer, accountIdValue) {
+      pollAccount(accountIdValue);
+    });
+  });
 
   function setBusy(form, busy) {
     Array.from(form.elements).forEach(function (element) {
@@ -363,18 +392,26 @@
   });
 
   accountDetailsDialog?.addEventListener("click", async function (event) {
-    const copyButton = event.target.closest("[data-detail-copy]");
-    if (copyButton) {
-      const kind = copyButton.dataset.detailCopy;
+    const copyRow = event.target.closest("[data-detail-copy]");
+    if (copyRow) {
+      const kind = copyRow.dataset.detailCopy;
       const id = accountDetailsDialog.dataset.accountId;
       const account = accountStore.get(id) || {};
       const text = account[kind] || "";
-      copyButton.disabled = true;
+      const state = copyRow.querySelector("[data-copy-state]");
+      copyRow.disabled = true;
+      copyRow.classList.add("is-copying");
       try {
         const copied = await copyText(text);
         if (copied) {
           await recordCopy(id, kind);
         }
+        if (state) {
+          state.textContent = copied
+            ? msg("accounts.copied_short", "Copied")
+            : msg("accounts.copy_manual_short", "Manual");
+        }
+        copyRow.classList.toggle("is-copied", copied);
         showMessage(
           copied
             ? msg("accounts.copy_success", "Copied.")
@@ -384,7 +421,14 @@
       } catch (error) {
         showMessage(error.message || msg("accounts.copy_failed", "Copy failed."), true);
       } finally {
-        copyButton.disabled = false;
+        copyRow.disabled = false;
+        copyRow.classList.remove("is-copying");
+        window.setTimeout(function () {
+          copyRow.classList.remove("is-copied");
+          if (state) {
+            state.textContent = msg("accounts.copy", "Copy");
+          }
+        }, 1200);
       }
       return;
     }

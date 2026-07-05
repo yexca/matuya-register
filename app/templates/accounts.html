@@ -43,62 +43,62 @@
       <header class="details-header">
         <h2 id="account-details-title">{{ t("accounts.details") }}</h2>
       </header>
-      <dl class="details-list">
-        <div>
-          <dt>{{ t("accounts.email") }}</dt>
-          <dd class="detail-copy-row">
-            <span data-detail-field="email"></span>
-            <button type="button" data-detail-copy="email">{{ t("accounts.copy") }}</button>
-          </dd>
-        </div>
-        <div>
-          <dt>{{ t("accounts.password") }}</dt>
-          <dd class="detail-copy-row">
-            <span data-detail-field="password"></span>
-            <button type="button" data-detail-copy="password">{{ t("accounts.copy") }}</button>
-          </dd>
-        </div>
-        <div>
-          <dt>{{ t("accounts.status") }}</dt>
-          <dd data-detail-field="status"></dd>
-        </div>
-        <div>
-          <dt>{{ t("accounts.failure_reason") }}</dt>
-          <dd data-detail-field="error_message"></dd>
-        </div>
-        <div>
-          <dt>{{ t("accounts.email_copy_count") }}</dt>
-          <dd data-detail-field="email_copy_count"></dd>
-        </div>
-        <div>
-          <dt>{{ t("accounts.password_copy_count") }}</dt>
-          <dd data-detail-field="password_copy_count"></dd>
-        </div>
-        <div>
-          <dt>{{ t("accounts.last_email_copied_at") }}</dt>
-          <dd data-detail-field="last_email_copied_at"></dd>
-        </div>
-        <div>
-          <dt>{{ t("accounts.last_password_copied_at") }}</dt>
-          <dd data-detail-field="last_password_copied_at"></dd>
-        </div>
-        <div>
-          <dt>{{ t("accounts.created_at") }}</dt>
-          <dd data-detail-field="created_at"></dd>
-        </div>
-        <div>
-          <dt>{{ t("accounts.updated_at") }}</dt>
-          <dd data-detail-field="updated_at"></dd>
-        </div>
-        <div>
-          <dt>{{ t("accounts.started_at") }}</dt>
-          <dd data-detail-field="started_at"></dd>
-        </div>
-        <div>
-          <dt>{{ t("accounts.completed_at") }}</dt>
-          <dd data-detail-field="completed_at"></dd>
-        </div>
-      </dl>
+      <div class="details-list">
+        <button type="button" class="detail-copy-row" data-detail-copy="email">
+          <span class="detail-label">{{ t("accounts.email") }}</span>
+          <span class="detail-value" data-detail-field="email"></span>
+          <span class="detail-copy-state" data-copy-state>{{ t("accounts.copy") }}</span>
+        </button>
+        <button type="button" class="detail-copy-row" data-detail-copy="password">
+          <span class="detail-label">{{ t("accounts.password") }}</span>
+          <span class="detail-value" data-detail-field="password"></span>
+          <span class="detail-copy-state" data-copy-state>{{ t("accounts.copy") }}</span>
+        </button>
+        <details class="detail-advanced">
+          <summary>
+            <span>{{ t("accounts.advanced") }}</span>
+            <span class="advanced-status" data-detail-field="status"></span>
+          </summary>
+          <dl class="advanced-list">
+            <div>
+              <dt>{{ t("accounts.failure_reason") }}</dt>
+              <dd data-detail-field="error_message"></dd>
+            </div>
+            <div>
+              <dt>{{ t("accounts.email_copy_count") }}</dt>
+              <dd data-detail-field="email_copy_count"></dd>
+            </div>
+            <div>
+              <dt>{{ t("accounts.password_copy_count") }}</dt>
+              <dd data-detail-field="password_copy_count"></dd>
+            </div>
+            <div>
+              <dt>{{ t("accounts.last_email_copied_at") }}</dt>
+              <dd data-detail-field="last_email_copied_at"></dd>
+            </div>
+            <div>
+              <dt>{{ t("accounts.last_password_copied_at") }}</dt>
+              <dd data-detail-field="last_password_copied_at"></dd>
+            </div>
+            <div>
+              <dt>{{ t("accounts.created_at") }}</dt>
+              <dd data-detail-field="created_at"></dd>
+            </div>
+            <div>
+              <dt>{{ t("accounts.updated_at") }}</dt>
+              <dd data-detail-field="updated_at"></dd>
+            </div>
+            <div>
+              <dt>{{ t("accounts.started_at") }}</dt>
+              <dd data-detail-field="started_at"></dd>
+            </div>
+            <div>
+              <dt>{{ t("accounts.completed_at") }}</dt>
+              <dd data-detail-field="completed_at"></dd>
+            </div>
+          </dl>
+        </details>
+      </div>
       <footer class="details-actions">
         <button type="button" class="details-close" data-details-close aria-label="{{ t('accounts.close') }}">
           {{ t("accounts.close") }}

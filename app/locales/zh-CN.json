@@ -1,5 +1,6 @@
 {
   "accounts.actions": "\u8d26\u53f7\u64cd\u4f5c",
+  "accounts.advanced": "\u9ad8\u7ea7",
   "accounts.batch_count": "\u6570\u91cf",
   "accounts.batch_created_with_failures": "\u5df2\u521b\u5efa {count} \u6761\u8d26\u53f7\u8bb0\u5f55\uff0c\u5176\u4e2d {failed} \u6761\u5931\u8d25\uff0c\u8bf7\u5728 Failed \u67e5\u770b\u3002",
   "accounts.batch_started": "\u5df2\u542f\u52a8 {count} \u4e2a\u6ce8\u518c\u4efb\u52a1\u3002",
@@ -9,6 +10,8 @@
   "accounts.copy_failed": "\u590d\u5236\u5931\u8d25\u3002",
   "accounts.copy_password": "\u590d\u5236\u5bc6\u7801",
   "accounts.copy_success": "\u5df2\u590d\u5236\u3002",
+  "accounts.copied_short": "\u5df2\u590d\u5236",
+  "accounts.copy_manual_short": "\u624b\u52a8",
   "accounts.created_at": "\u521b\u5efa\u65f6\u95f4",
   "accounts.completed_at": "\u5b8c\u6210\u65f6\u95f4",
   "accounts.close": "\u5173\u95ed",
@@ -30,6 +33,7 @@
   "accounts.online_required": "\u6ce8\u518c\u9700\u8981\u7f51\u7edc\u8fde\u63a5\u3002",
   "accounts.password": "\u5bc6\u7801",
   "accounts.password_copy_count": "\u5bc6\u7801\u590d\u5236\u6b21\u6570",
+  "accounts.poll_stopped": "\u5df2\u505c\u6b62\u8f6e\u8be2\u5361\u4f4f\u7684\u4efb\u52a1\uff0c\u7a0d\u540e\u5237\u65b0\u67e5\u770b\u3002",
   "accounts.register": "\u6ce8\u518c",
   "accounts.register_batch": "\u6279\u91cf\u6ce8\u518c",
   "accounts.register_single": "\u6ce8\u518c\u5355\u4e2a",

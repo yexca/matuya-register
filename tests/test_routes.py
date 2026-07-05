@@ -124,6 +124,8 @@ def test_accounts_page_uses_compact_rows(client, login, db_conn):
     assert 'class="account-row"' in html
     assert 'data-detail-copy="email"' in html
     assert 'data-detail-copy="password"' in html
+    assert 'class="detail-advanced"' in html
+    assert html.count('data-detail-copy=') == 2
     assert "data-details" in html
 
 

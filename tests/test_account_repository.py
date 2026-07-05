@@ -59,6 +59,7 @@ def test_repository_list_filter_pagination_and_interrupted(db_conn):
     first = repo.create_pending("first@example.invalid", "Secret123", None)
     second = repo.create_pending("second@example.invalid", "Secret123", None)
     third = repo.create_pending("third@example.invalid", "Secret123", None)
+    fourth = repo.create_pending("fourth@example.invalid", "Secret123", None)
     repo.mark_success(first.id)
     repo.mark_failed(second.id, "error.registration.unknown")
     repo.mark_running(third.id)
@@ -70,13 +71,16 @@ def test_repository_list_filter_pagination_and_interrupted(db_conn):
     all_page = repo.list(page=2, page_size=2)
     assert all_page.page == 2
     assert all_page.page_size == 2
-    assert all_page.total == 3
-    assert len(all_page.items) == 1
+    assert all_page.total == 4
+    assert len(all_page.items) == 2
 
     repo.mark_interrupted_running_accounts()
     interrupted = repo.get(third.id)
     assert interrupted.status == "failed"
     assert interrupted.error_message == "error.registration.interrupted"
+    pending_interrupted = repo.get(fourth.id)
+    assert pending_interrupted.status == "failed"
+    assert pending_interrupted.error_message == "error.registration.interrupted"
 
 
 def test_repository_bucket_filters_used_unused_failed(db_conn):
