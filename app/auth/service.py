@@ -9,11 +9,7 @@ class AuthService:
 
     def ensure_initial_admin(self, username, password):
         password_hash = generate_password_hash(password, method="pbkdf2:sha256")
-        user = self.repo.get_by_username(username)
-        if user is None:
-            return self.repo.create(username, password_hash)
-        self.repo.update_password_hash(user.id, password_hash)
-        return self.repo.get_by_id(user.id)
+        return self.repo.create_or_update(username, password_hash)
 
     def login(self, username, password):
         user = self.repo.get_by_username(username)

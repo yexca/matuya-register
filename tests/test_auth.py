@@ -11,6 +11,20 @@ def test_initial_admin_is_created_with_hash(db_conn):
     assert user.password_hash.startswith("pbkdf2:")
 
 
+def test_initial_admin_upsert_updates_password_without_duplicate(db_conn):
+    service = AuthService(db_conn)
+
+    first = service.ensure_initial_admin("admin", "first-password")
+    second = service.ensure_initial_admin("admin", "second-password")
+
+    assert first.id == second.id
+    assert service.login("admin", "first-password") is None
+    assert service.login("admin", "second-password") is not None
+    assert db_conn.execute(
+        "select count(*) from users where username = ?", ("admin",)
+    ).fetchone()[0] == 1
+
+
 def test_login_success_failure_and_logout(client, login, app):
     bad = login(password="bad-password")
     assert bad.status_code == 401

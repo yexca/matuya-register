@@ -26,16 +26,19 @@ class UserRepository:
         row = self.db.execute("select * from users where id = ?", (user_id,)).fetchone()
         return _to_user(row)
 
-    def create(self, username, password_hash):
+    def create_or_update(self, username, password_hash):
         now = db_module.utc_now_iso()
-        cursor = self.db.execute(
+        self.db.execute(
             """
             insert into users (username, password_hash, created_at, updated_at)
             values (?, ?, ?, ?)
+            on conflict(username) do update set
+              password_hash = excluded.password_hash,
+              updated_at = excluded.updated_at
             """,
             (username, password_hash, now, now),
         )
-        return self.get_by_id(cursor.lastrowid)
+        return self.get_by_username(username)
 
     def update_password_hash(self, user_id, password_hash):
         self.db.execute(
