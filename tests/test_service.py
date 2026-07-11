@@ -90,6 +90,12 @@ class FakeFallbackProvider:
                 return provider.wait_register_link(recipient)
         raise AssertionError(f"unhandled recipient {recipient}")
 
+    def cleanup_recipient(self, recipient):
+        for provider in self.providers:
+            if provider.can_handle(recipient):
+                return provider.cleanup_recipient(recipient)
+        return None
+
 
 def make_service(db_conn, config, **kwargs):
     return AccountService(
@@ -111,6 +117,70 @@ def test_service_success_path(app, db_conn):
     assert result.status == "success"
     assert result.started_at
     assert result.completed_at
+
+
+def test_registration_cleans_up_recipient(app, db_conn):
+    provider = FakeProvider("mail_tm", "cleanup@example.invalid")
+    service = AccountService(
+        db_conn,
+        config=app.config["APP_CONFIG"],
+        runner=None,
+        mail_provider=FakeFallbackProvider([provider]),
+        matuya_client=FakeMatuyaClient(),
+        generator=SequenceGenerator([]),
+    )
+    account = service.enqueue_single_register(created_by=None)
+
+    service.run_registration(account.id)
+
+    assert provider.cleaned == ["cleanup@example.invalid"]
+
+
+def test_auto_refill_counts_pending_and_running_as_in_flight(app, db_conn):
+    config = app.config["APP_CONFIG"]
+    object.__setattr__(config, "auto_refill_enabled", True)
+    object.__setattr__(config, "auto_refill_threshold", 5)
+    object.__setattr__(config, "auto_refill_target", 9)
+    repo = AccountRepository(db_conn)
+    for index in range(4):
+        account = repo.create_pending(f"available-{index}@example.invalid", "Secret123", None)
+        repo.mark_success(account.id)
+    repo.create_pending("queued@example.invalid", "Secret123", None)
+    submitted = []
+    service = AccountService(
+        db_conn,
+        config=config,
+        runner=type("Runner", (), {"submit": lambda self, fn, account_id: submitted.append(account_id)})(),
+        mail_client=FakeMailClient(),
+        matuya_client=FakeMatuyaClient(),
+        generator=SequenceGenerator([
+            "new-1@example.invalid",
+            "new-2@example.invalid",
+            "new-3@example.invalid",
+            "new-4@example.invalid",
+        ]),
+    )
+
+    accounts = service.ensure_auto_refill()
+
+    assert len(accounts) == 4
+    assert len(submitted) == 4
+
+
+def test_auto_refill_waits_during_failure_cooldown(app, db_conn):
+    config = app.config["APP_CONFIG"]
+    object.__setattr__(config, "auto_refill_enabled", True)
+    object.__setattr__(config, "auto_refill_threshold", 5)
+    object.__setattr__(config, "auto_refill_target", 9)
+    failed = AccountRepository(db_conn).create_pending(
+        "failed-refill@example.invalid", "Secret123", None
+    )
+    AccountRepository(db_conn).mark_failed(failed.id, "error.registration.unknown")
+    service = make_service(db_conn, config)
+
+    accounts = service.ensure_auto_refill()
+
+    assert accounts == []
 
 
 def test_service_matuya_failure_marks_failed(app, db_conn):

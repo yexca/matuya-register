@@ -1,5 +1,6 @@
 import logging
 import time
+from datetime import datetime, timedelta, timezone
 
 from flask import current_app, has_app_context
 
@@ -96,7 +97,13 @@ class AccountService:
     def run_registration(self, account_id):
         if self.app is not None and not has_app_context():
             with self.app.app_context():
-                return self._run_registration(account_id, db_module.get_db())
+                task_service = AccountService(
+                    db_module.get_db(),
+                    config=self.config,
+                    runner=self.runner,
+                    app=self.app,
+                )
+                return task_service._run_registration(account_id, task_service.db)
         return self._run_registration(account_id, self.db)
 
     def list_accounts(self, status=None, bucket=None, page=1, page_size=None):
@@ -112,9 +119,12 @@ class AccountService:
         return AccountRepository(self.db).increment_copy_count(account_id)
 
     def record_credential_copy(self, account_id, credential):
-        return AccountRepository(self.db).increment_credential_copy_count(
+        account = AccountRepository(self.db).increment_credential_copy_count(
             account_id, credential
         )
+        if account.status == "success":
+            self.ensure_auto_refill()
+        return account
 
     def mark_interrupted_running_accounts(self):
         AccountRepository(self.db).mark_interrupted_running_accounts()
@@ -145,6 +155,55 @@ class AccountService:
             account = repo.mark_failed(account_id, error_key)
             self._log(account, "fail", "failed", started, error_key, exc_info=True)
             return account
+        finally:
+            try:
+                self._mail_provider.cleanup_recipient(account.email)
+            except MailError:
+                logger.info("mail provider cleanup failed after registration", exc_info=True)
+            self.ensure_auto_refill(db=db)
+
+    def ensure_auto_refill(self, db=None):
+        if not self.config.auto_refill_enabled:
+            return []
+        target_db = db or self.db
+        refill_service = AccountService(
+            target_db,
+            config=self.config,
+            runner=self.runner,
+            app=self.app,
+        )
+        accounts = []
+        target_db.execute("begin immediate")
+        try:
+            repo = AccountRepository(target_db)
+            available, in_flight = repo.inventory_counts()
+            if available < self.config.auto_refill_threshold:
+                cutoff = (
+                    datetime.now(timezone.utc)
+                    - timedelta(seconds=self.config.auto_refill_failure_cooldown_seconds)
+                ).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+                cooling_down = (
+                    self.config.auto_refill_failure_cooldown_seconds > 0
+                    and repo.has_recent_failure(cutoff)
+                )
+                if not cooling_down:
+                    count = min(
+                        self.config.batch_max_count,
+                        max(0, self.config.auto_refill_target - available - in_flight),
+                    )
+                    for _ in range(count):
+                        try:
+                            accounts.append(refill_service._create_unique_account(None))
+                        except (EmailGenerateExhaustedError, MailError) as exc:
+                            accounts.append(refill_service._create_failed_account(None, exc))
+            target_db.execute("commit")
+        except Exception:
+            target_db.execute("rollback")
+            raise
+        for account in accounts:
+            if account.status == "pending":
+                refill_service._submit_registration(account.id)
+        return accounts
 
     def _create_unique_account(self, created_by):
         if self.mail_provider is not None:

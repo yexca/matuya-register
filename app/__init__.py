@@ -9,6 +9,7 @@ from .config import load_config
 from .logging import init_logging
 from .security import init_security
 from .accounts.service import AccountService
+from .accounts.tasks import get_task_runner
 
 
 def create_app():
@@ -29,5 +30,15 @@ def create_app():
     init_security(app)
     app.register_blueprint(auth_bp)
     app.register_blueprint(accounts_bp)
+
+    if config.auto_refill_enabled:
+        def check_auto_refill():
+            with app.app_context():
+                AccountService.from_current_app().ensure_auto_refill()
+
+        check_auto_refill()
+        get_task_runner(app).start_periodic(
+            config.auto_refill_check_seconds, check_auto_refill
+        )
 
     return app

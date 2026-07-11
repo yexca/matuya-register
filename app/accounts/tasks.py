@@ -1,5 +1,6 @@
 import atexit
 import logging
+import threading
 from concurrent.futures import ThreadPoolExecutor
 
 
@@ -11,6 +12,8 @@ class TaskRunner:
         self.executor = ThreadPoolExecutor(
             max_workers=max_workers, thread_name_prefix="registration"
         )
+        self._stop_event = threading.Event()
+        self._periodic_threads = []
 
     def submit(self, fn, *args, **kwargs):
         future = self.executor.submit(fn, *args, **kwargs)
@@ -18,7 +21,25 @@ class TaskRunner:
         return future
 
     def shutdown(self):
+        self._stop_event.set()
         self.executor.shutdown(wait=False, cancel_futures=False)
+
+    def start_periodic(self, interval_seconds, fn):
+        def loop():
+            while not self._stop_event.wait(interval_seconds):
+                try:
+                    fn()
+                except Exception:
+                    logger.exception("uncaught periodic task exception")
+
+        thread = threading.Thread(
+            target=loop,
+            name="registration-auto-refill",
+            daemon=True,
+        )
+        thread.start()
+        self._periodic_threads.append(thread)
+        return thread
 
     def _log_uncaught_exception(self, future):
         try:

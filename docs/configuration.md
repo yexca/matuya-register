@@ -78,6 +78,11 @@ address suffix.
 | --- | --- | --- |
 | `BATCH_MAX_COUNT` | `5` | Maximum batch size accepted by the API. |
 | `BATCH_MAX_WORKERS` | `2` | Local worker thread count. |
+| `AUTO_REFILL_ENABLED` | `false` | Enables automatic registration when usable stock is low. |
+| `AUTO_REFILL_THRESHOLD` | `5` | Triggers refill when successful unused accounts are below this count. |
+| `AUTO_REFILL_TARGET` | `10` | Target stock, counting successful unused, pending, and running accounts. |
+| `AUTO_REFILL_CHECK_SECONDS` | `60` | Periodic inventory check interval. |
+| `AUTO_REFILL_FAILURE_COOLDOWN_SECONDS` | `300` | Pauses replacement attempts after a recent registration failure. |
 | `PAGE_SIZE_DEFAULT` | `20` | Default account-list page size. |
 | `PAGE_SIZE_MAX` | `50` | Maximum account-list page size. |
 

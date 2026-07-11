@@ -30,6 +30,11 @@ class AppConfig:
     http_timeout_seconds: int
     batch_max_count: int
     batch_max_workers: int
+    auto_refill_enabled: bool
+    auto_refill_threshold: int
+    auto_refill_target: int
+    auto_refill_check_seconds: int
+    auto_refill_failure_cooldown_seconds: int
     page_size_default: int
     page_size_max: int
     enable_csrf: bool
@@ -90,6 +95,13 @@ def load_config() -> AppConfig:
         http_timeout_seconds=_env_int("HTTP_TIMEOUT_SECONDS", "20"),
         batch_max_count=batch_max_count,
         batch_max_workers=batch_max_workers,
+        auto_refill_enabled=_env_bool("AUTO_REFILL_ENABLED", False),
+        auto_refill_threshold=_env_int("AUTO_REFILL_THRESHOLD", "5"),
+        auto_refill_target=_env_int("AUTO_REFILL_TARGET", "10"),
+        auto_refill_check_seconds=_env_int("AUTO_REFILL_CHECK_SECONDS", "60"),
+        auto_refill_failure_cooldown_seconds=_env_int(
+            "AUTO_REFILL_FAILURE_COOLDOWN_SECONDS", "300"
+        ),
         page_size_default=page_size_default,
         page_size_max=page_size_max,
         enable_csrf=_env_bool("ENABLE_CSRF", True),
@@ -196,6 +208,14 @@ def _validate(config: AppConfig) -> None:
         raise ConfigError("BATCH_MAX_COUNT must be between 1 and 50")
     if not 1 <= config.batch_max_workers <= 10:
         raise ConfigError("BATCH_MAX_WORKERS must be between 1 and 10")
+    if config.auto_refill_threshold < 1:
+        raise ConfigError("AUTO_REFILL_THRESHOLD must be greater than 0")
+    if config.auto_refill_target <= config.auto_refill_threshold:
+        raise ConfigError("AUTO_REFILL_TARGET must be greater than AUTO_REFILL_THRESHOLD")
+    if config.auto_refill_check_seconds < 1:
+        raise ConfigError("AUTO_REFILL_CHECK_SECONDS must be greater than 0")
+    if config.auto_refill_failure_cooldown_seconds < 0:
+        raise ConfigError("AUTO_REFILL_FAILURE_COOLDOWN_SECONDS must be 0 or greater")
     if not 1 <= config.page_size_default <= config.page_size_max:
         raise ConfigError("PAGE_SIZE_DEFAULT must be between 1 and PAGE_SIZE_MAX")
     allowed = {"en", "zh-CN"}

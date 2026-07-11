@@ -89,6 +89,30 @@ class AccountRepository:
         ).fetchall()
         return Page([_to_account(row) for row in rows], page, page_size, total)
 
+    def inventory_counts(self):
+        row = self.db.execute(
+            """
+            select
+              sum(case when status = 'success'
+                    and not (email_copy_count >= 1 and password_copy_count >= 1)
+                  then 1 else 0 end) as available,
+              sum(case when status in ('pending', 'running') then 1 else 0 end) as in_flight
+            from matuya_accounts
+            """
+        ).fetchone()
+        return int(row["available"] or 0), int(row["in_flight"] or 0)
+
+    def has_recent_failure(self, cutoff):
+        row = self.db.execute(
+            """
+            select 1 from matuya_accounts
+            where status = 'failed' and completed_at >= ?
+            limit 1
+            """,
+            (cutoff,),
+        ).fetchone()
+        return row is not None
+
     def mark_running(self, account_id):
         now = db_module.utc_now_iso()
         self.db.execute(
